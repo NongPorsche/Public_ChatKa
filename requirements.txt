@@ -1,0 +1,4 @@
+fastapi
+uvicorn[standard]
+cohere
+python-dotenv
