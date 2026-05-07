@@ -1,0 +1,4197 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔</text></svg>">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat! ka — Roleplay AI</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Sarabun:wght@300;400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    /* ============================================================
+       ตัวแปรสี (CSS Variables)
+       แก้ตรงนี้เพื่อเปลี่ยนธีมสีทั้งเว็บในที่เดียว
+       ============================================================ */
+    :root {
+      --bg: #212131;
+      /* สีพื้นหลังหลักของเว็บ */
+      --surface: rgba(50, 50, 78, 0.85);
+      /* สีพื้นกล่อง (โปร่งแสง 85%) */
+      --surface2: rgba(26, 26, 46, 0.7);
+      /* สีพื้นกล่องชั้นสอง (โปร่งแสง 70%) */
+      --border: rgba(42, 42, 69, 0.5);
+      /* สีเส้นขอบ */
+      --gold: #c9a84c;
+      /* สีทอง — accent หลัก */
+      --gold2: #e8c97a;
+      /* สีทองอ่อน — ใช้กับข้อความ user */
+      --red: #e05a5a;
+      /* สีแดง — ใช้กับปุ่ม reset/error */
+      --text: #e8e4d8;
+      /* สีข้อความหลัก */
+      --muted: #7a7890;
+      /* สีข้อความรอง/จาง */
+      --radius: 12px;
+      /* ความโค้งมนของกล่อง */
+    }
+
+    /* Reset พื้นฐาน — ทุก element ไม่มี margin/padding เริ่มต้น */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Sarabun', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      overflow-y: hidden;
+      /* ซ่อน scrollbar แนวนอน */
+    }
+
+    /* เงา gradient ตกแต่งพื้นหลัง — ไม่รับ click (pointer-events: none) */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(201, 168, 76, 0.04) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(80, 60, 150, 0.06) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ============================================================
+       ระบบ Page — แต่ละหน้าซ่อนอยู่ (.page) จนกว่าจะได้ .active
+       ============================================================ */
+    .page {
+      display: none;
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
+
+    }
+
+    /* เพิ่มต่อท้าย .page ที่มีอยู่แล้ว */
+    #page-chat.active {
+      min-height: unset;
+      /* ยกเลิก min-height: 100vh สำหรับหน้าแชทเท่านั้น */
+    }
+
+    .page.active {
+      display: flex;
+    }
+
+
+    /* ============================================================
+       หน้า LOGIN / SIGNUP
+       ============================================================ */
+    #page-login {
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+
+    /* กล่อง login ตรงกลาง */
+    .login-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 48px 40px;
+      width: 380px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      box-shadow: 0 0 60px rgba(201, 168, 76, 0.08);
+      animation: fadeUp 0.5s ease;
+      /* animation ลอยขึ้นตอนโหลด */
+      backdrop-filter: blur(12px);
+    }
+
+    /* ชื่อเว็บในหน้า login
+       ✏️ แก้ข้อความได้ที่นี่ หรือที่ HTML ด้านล่าง */
+    .login-title {
+      font-family: 'Cinzel', serif;
+      font-size: 26px;
+      color: var(--gold);
+      text-align: center;
+      letter-spacing: 1px;
+    }
+
+    .login-sub {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: -16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+
+    .form-group input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-family: 'Sarabun', sans-serif;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus {
+      border-color: var(--gold);
+    }
+
+    /* ขอบทองตอนคลิก */
+
+    /* ปุ่มหลัก (Login / บันทึก) */
+    .btn-primary {
+      background: linear-gradient(135deg, var(--gold), #a07830);
+      color: #0d0d14;
+      border: none;
+      border-radius: 8px;
+      padding: 13px;
+      font-family: 'Cinzel', serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .login-switch {
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .login-switch span {
+      color: var(--gold);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* ✏️ ปุ่ม Skip — สไตล์โปร่งใส ข้อความจาง
+       ถ้าอยากเปลี่ยนสีข้อความให้แก้ที่ color
+       ถ้าอยากซ่อนปุ่มนี้ให้เพิ่ม display: none; */
+    .btn-skip {
+      background: transparent;
+      border: 1px dashed rgba(122, 120, 144, 0.4);
+      border-radius: 8px;
+      padding: 10px;
+      color: var(--muted);
+      font-family: 'Sarabun', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+      width: 100%;
+    }
+
+    .btn-skip:hover {
+      color: var(--text);
+      border-color: var(--muted);
+    }
+
+    .error-msg {
+      color: var(--red);
+      font-size: 13px;
+      text-align: center;
+      display: none;
+    }
+
+
+    /* ============================================================
+       แถบ Navigation บนสุด (ใช้ร่วมทุกหน้า ยกเว้น Login)
+       ============================================================ */
+    .topnav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: rgba(13, 13, 20, 0.9);
+      backdrop-filter: blur(12px);
+      /* ทำให้พื้นหลังข้างล่างเบลอ */
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 100;
+      /* อยู่บนสุดเสมอ */
+    }
+
+    /* ชื่อเว็บใน nav
+       ✏️ แก้ข้อความได้ที่ HTML ด้านล่าง (หลาย nav-logo) */
+    .nav-logo {
+      font-family: 'Cinzel', serif;
+      font-size: 18px;
+      color: var(--gold);
+      letter-spacing: 1px;
+      cursor: pointer;
+      /* กดเพื่อกลับหน้ารวมตัวละคร*/
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .nav-user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+
+    /* รูปโปรไฟล์ user มุมขวาบน */
+    .nav-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold), #704020);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      border: 2px solid var(--border);
+      overflow: hidden;
+    }
+
+    .nav-name {
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    /* ปุ่มเล็กใน nav (ตัวละครของฉัน / กลับ) */
+    .btn-icon {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      color: var(--muted);
+      font-family: 'Sarabun', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .btn-icon:hover {
+      color: var(--gold);
+      border-color: var(--gold);
+    }
+
+
+    /* ============================================================
+       หน้า BROWSE — กริดเลือกตัวละคร
+       ============================================================ */
+    #page-browse {
+      flex-direction: column;
+      padding-top: 60px;
+    }
+
+    .browse-content {
+      padding: 32px;
+      flex: 1;
+    }
+
+    .section-title {
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      color: var(--gold);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* เส้นยาวต่อจากหัวข้อ */
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* กริด responsive — ปรับจำนวนคอลัมน์ตามความกว้างหน้าจอ */
+    .char-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    /* การ์ดตัวละครแต่ละใบ */
+    .char-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      text-align: center;
+      animation: fadeUp 0.4s ease both;
+      backdrop-filter: blur(8px);
+    }
+
+    .char-card:hover {
+      border-color: var(--gold);
+      transform: translateY(-4px);
+      /* ยกขึ้นตอน hover */
+      box-shadow: 0 8px 30px rgba(201, 168, 76, 0.12);
+    }
+
+    /* วงกลมรูปตัวละครในการ์ด */
+    .char-avatar {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2a2a45, #1a1a2e);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      overflow: hidden;
+      /* ตัดรูปให้อยู่ในวงกลม */
+      transition: border-color 0.2s;
+    }
+
+    .char-card:hover .char-avatar {
+      border-color: var(--gold);
+    }
+
+    .char-name {
+      font-family: 'Cinzel', serif;
+      font-size: 15px;
+      color: var(--text);
+    }
+
+    .char-desc {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+
+    /* ============================================================
+       รูปภาพทุกจุดในเว็บ — ใส่ทีเดียวครอบคลุมหมด
+       object-fit: cover = รักษาสัดส่วน ตัดส่วนเกิน
+       object-position: center top = โฟกัสบน-กลาง (เหมาะรูปคน)
+       ✏️ เปลี่ยน object-position เป็น "center center" ถ้าต้องการตรงกลาง
+       ============================================================ */
+    .char-avatar img,
+    .sidebar-avatar img,
+    .msg-face img,
+    .user-mini-avatar img,
+    .nav-avatar img,
+    .avatar-big img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      border-radius: 50%;
+      display: block;
+    }
+
+
+    /* ============================================================
+       หน้า PROFILE — ตั้งค่าตัวตนของผู้ใช้
+       ============================================================ */
+    #page-profile {
+      flex-direction: column;
+      padding-top: 60px;
+    }
+
+    .profile-content {
+      max-width: 520px;
+      margin: 40px auto;
+      padding: 0 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      width: 100%;
+    }
+
+    .profile-avatar-picker {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* วงกลมรูปโปรไฟล์ขนาดใหญ่ — คลิกเพื่ออัปโหลดรูป */
+    .avatar-big {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2a2a45, #1a1a2e);
+      border: 3px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .avatar-big:hover {
+      border-color: var(--gold);
+    }
+
+    /* เลเยอร์มืดตอน hover เพื่อแสดงไอคอนกล้อง */
+    .avatar-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s;
+      font-size: 24px;
+    }
+
+    .avatar-big:hover .avatar-overlay {
+      opacity: 1;
+    }
+
+    .profile-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      backdrop-filter: blur(12px);
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field-label {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .field-input,
+    .field-textarea {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-family: 'Sarabun', sans-serif;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+
+    .field-input:focus,
+    .field-textarea:focus {
+      border-color: var(--gold);
+    }
+
+    .field-textarea {
+      resize: vertical;
+      min-height: 100px;
+      line-height: 1.6;
+    }
+
+
+    /* ============================================================
+       หน้า CHAT — หน้าสนทนาหลัก
+       ============================================================ */
+
+    .chat-layout {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      /* สำคัญมาก — ให้ flex child หดได้ */
+      position: relative;
+      /* ไม่ใส่ height — ให้ browser จัดการเองเมื่อคีย์บอร์ดเด้ง */
+    }
+
+    /* ----------------------------------------------------------
+       พื้นหลังแชท — รูปภาพตัวละคร (เบลอ + มืด)
+       รูปนี้จะถูกเปลี่ยนอัตโนมัติตามตัวละครที่เลือก
+       ✏️ ถ้าอยากให้พื้นหลังเป็นสีล้วน ให้เอา background-image ออก
+          และเปลี่ยน background เป็นสีที่ต้องการ
+       ---------------------------------------------------------- */
+    .chat-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background-size: cover;
+      background-position: center top;
+      background-repeat: no-repeat;
+      /* ✏️ ปรับความเข้มของ overlay สีดำ (0.55 = มืด 55%) */
+      background-color: rgba(13, 13, 20, 0.55);
+      background-blend-mode: darken;
+      /* เบลอพื้นหลังเล็กน้อย */
+      filter: blur(0px);
+      transition: background-image 0.5s ease;
+    }
+
+    /* เพิ่ม overlay gradient ด้านล่างให้อ่านง่าย */
+    .chat-bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom,
+          rgba(13, 13, 20, 0.3) 0%,
+          rgba(13, 13, 20, 0.1) 40%,
+          rgba(13, 13, 20, 0.7) 100%);
+    }
+
+    /* ทุก element ใน chat-layout ต้องอยู่เหนือ chat-bg */
+    .chat-sidebar,
+    .chat-main {
+      position: relative;
+      z-index: 1;
+    }
+
+
+    /* ----------------------------------------------------------
+       Sidebar ซ้าย — แสดงข้อมูลตัวละครและผู้ใช้
+       ---------------------------------------------------------- */
+    .chat-sidebar {
+      width: 260px;
+      background: rgba(13, 13, 20, 0.75);
+      backdrop-filter: blur(16px);
+      border-right: 1px solid var(--border);
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    /* ส่วนบนของ sidebar — รูปและชื่อตัวละคร */
+    .sidebar-char {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      text-align: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* วงกลมรูปตัวละครใน sidebar */
+    .sidebar-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2a2a45, #1a1a2e);
+      border: 2px solid var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      overflow: hidden;
+    }
+
+    .sidebar-charname {
+      font-family: 'Cinzel', serif;
+      font-size: 16px;
+      color: var(--gold);
+    }
+
+    .sidebar-chardesc {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .sidebar-section-title {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    /* กล่องข้อมูล user เล็กๆ ใน sidebar */
+    .user-profile-mini {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: rgba(26, 26, 46, 0.6);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .user-mini-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold), #704020);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .user-mini-name {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .user-mini-role {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ปุ่ม Reset การสนทนา */
+    .btn-reset {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      color: var(--muted);
+      font-family: 'Sarabun', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+      width: 100%;
+      margin-top: auto;
+      /* ดันลงด้านล่างสุด */
+    }
+
+    .btn-reset:hover {
+      color: var(--red);
+      border-color: var(--red);
+    }
+
+
+    /* ----------------------------------------------------------
+       กล่องแชทหลัก
+       ---------------------------------------------------------- */
+    .chat-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* พื้นที่แสดงข้อความ — scroll ได้ */
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      scroll-behavior: smooth;
+    }
+
+    /* scrollbar บาง */
+    .chat-messages::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .chat-messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    /* แถวข้อความ — AI อยู่ซ้าย, user อยู่ขวา */
+    .msg-row {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      animation: fadeUp 0.3s ease;
+    }
+
+    .msg-row.user {
+      flex-direction: row-reverse;
+    }
+
+    /* user สลับซ้าย-ขวา */
+
+    /* วงกลมหน้าข้อความ */
+    .msg-face {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      overflow: hidden;
+    }
+
+    .msg-face.ai-face {
+      background: linear-gradient(135deg, #2a2a45, #1a1a2e);
+      border: 1px solid var(--gold);
+    }
+
+    .msg-face.user-face {
+      background: linear-gradient(135deg, var(--gold), #704020);
+    }
+
+    /* กล่องข้อความ */
+    .msg-bubble {
+      max-width: 65%;
+      padding: 14px 18px;
+      border-radius: 14px;
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    /* กล่อง AI — พื้นมืดโปร่งใส */
+    .msg-row.ai .msg-bubble {
+      background: rgba(19, 19, 31, 0.82);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+      border-top-left-radius: 4px;
+      /* มุมบนซ้ายตัด ทำให้ดูเป็น bubble */
+    }
+
+    /* กล่อง user — พื้นทอง */
+    .msg-row.user .msg-bubble {
+      background: rgba(42, 31, 10, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(201, 168, 76, 0.3);
+      border-top-right-radius: 4px;
+      color: var(--gold2);
+    }
+
+    /* ชื่อเล็กๆ เหนือกล่องข้อความ */
+    .msg-name {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-style: italic;
+    }
+
+    /* ----------------------------------------------------------
+       Typing indicator — จุดกระพริบตอน AI กำลังพิมพ์
+       ---------------------------------------------------------- */
+    .typing-indicator {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      padding: 10px 4px;
+    }
+
+    .typing-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: typingBounce 1.2s infinite;
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    /* ----------------------------------------------------------
+       ช่องพิมพ์ด้านล่าง
+       ---------------------------------------------------------- */
+    .chat-input-area {
+      padding: 16px 24px;
+      background: rgba(13, 13, 20, 0.8);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .chat-input {
+      flex: 1;
+      background: rgba(26, 26, 46, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-family: 'Sarabun', sans-serif;
+      font-size: 15px;
+      outline: none;
+      resize: none;
+      max-height: 120px;
+      transition: border-color 0.2s;
+      line-height: 1.5;
+    }
+
+    .chat-input:focus {
+      border-color: var(--gold);
+    }
+
+    /* ปุ่มส่ง */
+    .btn-send {
+      background: linear-gradient(135deg, var(--gold), #a07830);
+      border: none;
+      border-radius: 10px;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      flex-shrink: 0;
+      color: #0d0d14;
+      font-size: 18px;
+    }
+
+    .btn-send:hover {
+      opacity: 0.85;
+      transform: scale(1.05);
+    }
+
+    .btn-send:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ข้อความตรงกลางตอนยังไม่มีแชท */
+    .chat-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 14px;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+    }
+
+    .chat-empty-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 3px solid var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .chat-empty-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      border-radius: 50%;
+    }
+
+
+    /* ============================================================
+       Animations
+       ============================================================ */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes typingBounce {
+
+      0%,
+      60%,
+      100% {
+        transform: translateY(0);
+      }
+
+      30% {
+        transform: translateY(-6px);
+      }
+    }
+
+    /* หน่วงเวลาการ์ดให้โผล่ทีละใบ */
+    .char-card:nth-child(1) {
+      animation-delay: 0.05s;
+    }
+
+    .char-card:nth-child(2) {
+      animation-delay: 0.10s;
+    }
+
+    .char-card:nth-child(3) {
+      animation-delay: 0.15s;
+    }
+
+    .char-card:nth-child(4) {
+      animation-delay: 0.20s;
+    }
+
+    /* ซ่อน input file จริงๆ ไว้ข้างหลัง */
+    #avatar-file-input {
+      display: none;
+    }
+
+    /* Toast notification เล็กๆ ด้านล่าง */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      /* ซ่อนอยู่ด้านล่าง */
+      background: var(--surface);
+      border: 1px solid var(--gold);
+      border-radius: 10px;
+      padding: 12px 24px;
+      color: var(--gold);
+      font-size: 14px;
+      z-index: 999;
+      transition: transform 0.3s ease;
+      backdrop-filter: blur(12px);
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* แสดงขึ้นมา */
+
+
+    /* ============================================================
+       Format ข้อความ — Action และ บทพูด
+       ============================================================ */
+
+    /* *action* — ตัวเอียงและจาง
+       ใช้แทนการบรรยายท่าทาง เช่น *ยิ้ม* *เดินเข้ามาใกล้*
+       ✏️ ปรับสีที่ color และความจางที่ opacity */
+    .action {
+      font-style: italic;
+      color: var(--muted);
+      /* ✏️ เปลี่ยนสีได้ เช่น #aaa หรือ #9a8fbb */
+      opacity: 0.80;
+      /* ✏️ ความเข้ม 0.0 (ล่องหน) — 1.0 (เต็ม) */
+      font-size: 0.93em;
+      /* เล็กกว่าข้อความปกตินิดนึง */
+    }
+
+    /* "บทพูด" — หนาขึ้นเล็กน้อย
+       ใช้แทนคำพูดโดยตรง เช่น "สวัสดีครับ"
+       ✏️ ปรับความหนาที่ font-weight */
+    .speech {
+      font-weight: 600;
+      /* ✏️ 400=ปกติ 500=กึ่งหนา 600=หนา 700=หนามาก */
+      color: inherit;
+      /* ใช้สีเดิมของ bubble นั้นๆ */
+    }
+
+    /* Action ในกล่อง user — ใช้สีทองจาง แทนสีเทา */
+    .msg-row.user .action {
+      color: rgba(232, 201, 122, 0.55);
+      /* ✏️ ทองจาง ปรับได้ */
+    }
+
+    /* ============================================================
+       กล่องบรรยายฉาก (Narration) — แสดงก่อน AI พูด
+       เป็นข้อความตรงกลางสไตล์นิยาย คั่นด้วยเส้น
+       ✏️ ปรับสีและ font ได้ตรงนี้
+       ============================================================ */
+    .narration-box {
+      text-align: center;
+      color: #b8a88a;
+      /* ✏️ สีข้อความ narration */
+      font-style: italic;
+      font-size: 13.5px;
+      line-height: 1.9;
+      padding: 20px 48px;
+      margin: 4px 0 8px;
+      white-space: pre-line;
+      /* รักษาการขึ้นบรรทัดจากข้อความต้นฉบับ */
+      position: relative;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+    }
+
+    /* เส้นคั่นบน-ล่าง narration */
+    .narration-box::before,
+    .narration-box::after {
+      content: '';
+      display: block;
+      height: 1px;
+      /* ✏️ เปลี่ยนสีเส้นได้ */
+      background: linear-gradient(to right, transparent, rgba(201, 168, 76, 0.4), transparent);
+      margin: 10px auto;
+      width: 60%;
+    }
+
+    /* ============================================================
+   Modal แนะนำตัวละคร
+   ============================================================ */
+    /* ============================================================
+   MODAL — popup แสดงรายละเอียดตัวละครก่อนเข้าแชท
+   ============================================================ */
+
+    /* พื้นหลังมืดปิดหน้าจอทั้งหมด */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      /* ✏️ ความมืดพื้นหลัง */
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    /* ตอน modal เปิด — ใส่ class .open เพื่อให้เห็น */
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* กล่อง modal หลัก */
+    .modal-box {
+      background: #1a1a2e;
+      border: 1px solid rgba(201, 168, 76, 0.25);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 420px;
+      /* ✏️ ความกว้างสูงสุด */
+      max-height: 88vh;
+      /* ✏️ ความสูงสูงสุด */
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(201, 168, 76, 0.1);
+      transform: translateY(20px);
+      transition: transform 0.25s ease;
+    }
+
+    .modal-overlay.open .modal-box {
+      transform: translateY(0);
+    }
+
+    /* ส่วนรูปภาพ — คงที่ ไม่ scroll */
+    .modal-img-wrap {
+      position: relative;
+      flex-shrink: 0;
+      /* ห้าม shrink รูปต้องคงที่ */
+      height: 280px;
+      /* ✏️ ความสูงรูป */
+      overflow: hidden;
+      border-radius: 20px 20px 0 0;
+    }
+
+    .modal-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      /* ✏️ โฟกัสรูป: top=บน, center=กลาง */
+      display: block;
+    }
+
+    /* กรณีไม่มีรูป — แสดง emoji แทน */
+    .modal-img-emoji {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 80px;
+      background: linear-gradient(135deg, #2a2a45, #1a1a2e);
+    }
+
+    /* gradient ไล่สีจากรูปลงมา */
+    .modal-img-wrap::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 80px;
+      background: linear-gradient(to bottom, transparent, #1a1a2e);
+    }
+
+    /* ปุ่มปิด ✕ มุมขวาบน */
+    .modal-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      transition: background 0.2s;
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      background: rgba(224, 90, 90, 0.7);
+    }
+
+    /* ส่วนข้อความ — scroll ได้ */
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .modal-body::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .modal-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .modal-body::-webkit-scrollbar-thumb {
+      background: rgba(201, 168, 76, 0.3);
+      border-radius: 4px;
+    }
+
+    .modal-char-name {
+      font-family: 'Cinzel', serif;
+      font-size: 22px;
+      /* ✏️ ขนาดชื่อ */
+      color: var(--gold);
+      line-height: 1.2;
+    }
+
+    .modal-char-desc {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 6px;
+      /*desc*/
+    }
+
+    .modal-section-label {
+      font-size: 11px;
+      color: var(--gold);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      opacity: 0.7;
+      margin-bottom: 6px;
+    }
+
+    .modal-lore {
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.8;
+      opacity: 0.85;
+      white-space: pre-line;
+    }
+
+    /* กล่องแสดงฉากเปิด */
+    .modal-scene {
+      background: rgba(201, 168, 76, 0.06);
+      border: 1px solid rgba(201, 168, 76, 0.15);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #b8a88a;
+      font-style: italic;
+      line-height: 1.85;
+      white-space: pre-line;
+    }
+
+    .modal-scene-label {
+      font-size: 12px;
+      color: var(--gold);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ปุ่มเริ่มการสนทนา */
+    .modal-btn-start {
+      background: linear-gradient(135deg, var(--gold), #a07830);
+      color: #0d0d14;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      font-family: 'Cinzel', serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: opacity 0.2s, transform 0.1s;
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    .modal-btn-start:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .modal-btn-start:active {
+      transform: translateY(0);
+    }
+
+    /* ============================================================
+   PROFILE v2 — ระบบหลายตัวละคร
+   ============================================================ */
+
+    /* Layout หลักของหน้า profile — แบ่งซ้าย/ขวา */
+    .profile-layout {
+      display: flex;
+      gap: 24px;
+      width: 100%;
+      max-width: 900px;
+      margin: 32px auto;
+      padding: 0 24px;
+      align-items: flex-start;
+    }
+
+    /* ============ คอลัมน์ซ้าย — รายการตัวละครที่สร้างแล้ว ============ */
+    .profile-list-col {
+      width: 260px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .profile-list-title {
+      font-family: 'Cinzel', serif;
+      font-size: 13px;
+      color: var(--gold);
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    /* การ์ดตัวละครในรายการซ้าย */
+    .profile-char-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+
+    .profile-char-item:hover {
+      border-color: rgba(201, 168, 76, 0.4);
+      background: rgba(50, 50, 78, 0.9);
+    }
+
+    /* การ์ดที่ถูกเลือกอยู่ — ขอบทอง */
+    .profile-char-item.active {
+      border-color: var(--gold);
+      background: rgba(201, 168, 76, 0.08);
+    }
+
+    /* รูปเล็กในการ์ดรายการ */
+    .profile-item-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold), #704020);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .profile-item-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      border-radius: 50%;
+    }
+
+    .profile-item-info {
+      flex: 1;
+      min-width: 0;
+      /* ป้องกันข้อความล้น */
+    }
+
+    .profile-item-name {
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .profile-item-bio {
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+
+    /* ป้าย "ใช้งานอยู่" */
+    .profile-item-badge {
+      font-size: 10px;
+      background: var(--gold);
+      color: #0d0d14;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-weight: 700;
+      flex-shrink: 0;
+      letter-spacing: 0.5px;
+    }
+
+    /* ปุ่มลบ — มุมขวาบนของการ์ด */
+    .profile-item-delete {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 14px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: color 0.2s, background 0.2s;
+      display: none;
+      /* ซ่อนไว้ แสดงตอน hover */
+    }
+
+    .profile-char-item:hover .profile-item-delete {
+      display: block;
+    }
+
+    .profile-item-delete:hover {
+      color: var(--red);
+      background: rgba(224, 90, 90, 0.1);
+    }
+
+    /* ปุ่มสร้างตัวละครใหม่ */
+    .btn-new-char {
+      background: transparent;
+      border: 1px dashed rgba(201, 168, 76, 0.35);
+      border-radius: 10px;
+      padding: 12px;
+      color: var(--gold);
+      font-family: 'Sarabun', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      width: 100%;
+      text-align: center;
+    }
+
+    .btn-new-char:hover {
+      border-color: var(--gold);
+      background: rgba(201, 168, 76, 0.06);
+    }
+
+    /* ============ คอลัมน์ขวา — ฟอร์มสร้าง/แก้ไขตัวละคร ============ */
+    .profile-form-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .profile-form-title {
+      font-family: 'Cinzel', serif;
+      font-size: 15px;
+      color: var(--gold);
+    }
+
+    /* ปุ่มบันทึกสีทอง + ปุ่มยกเลิกโปร่ง */
+    .profile-btn-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 13px 20px;
+      color: var(--muted);
+      font-family: 'Sarabun', sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .btn-secondary:hover {
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* ============================================================
+   RESPONSIVE — มือถือ (หน้าจอกว้างน้อยกว่า 640px)
+   ทุก rule ในนี้จะทำงานเฉพาะบนมือถือเท่านั้น
+   ============================================================ */
+    /* ============================================================
+   RESPONSIVE — มือถือ (หน้าจอกว้างน้อยกว่า 640px)
+   ทุก rule ในนี้จะทำงานเฉพาะบนมือถือเท่านั้น
+   ============================================================ */
+
+    @media (max-width: 640px) {
+
+      .login-box {
+        width: 92vw;
+        padding: 32px 24px;
+      }
+
+      .char-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+
+      .browse-content {
+        padding: 16px;
+      }
+
+      .char-card {
+        padding: 14px 10px;
+      }
+
+      .char-avatar {
+        width: 70px;
+        height: 70px;
+      }
+
+      .chat-sidebar {
+        display: none;
+      }
+
+      .chat-input-area {
+        padding: 10px 12px;
+      }
+
+      .msg-bubble {
+        max-width: 85%;
+      }
+
+      .modal-box {
+        max-width: 96vw;
+        max-height: 92vh;
+      }
+
+      .modal-img-wrap {
+        height: 220px;
+      }
+
+      .profile-layout {
+        flex-direction: column;
+        margin: 16px auto;
+        padding: 0 16px;
+      }
+
+      .profile-list-col {
+        width: 100%;
+      }
+
+      .topnav {
+        padding: 0 14px;
+      }
+
+      .nav-logo {
+        font-size: 15px;
+      }
+
+      .btn-icon {
+        font-size: 12px;
+        padding: 6px 10px;
+      }
+
+      .avatar-big {
+        width: 80px;
+        height: 80px;
+        font-size: 36px;
+      }
+
+      .profile-card {
+        padding: 18px 16px;
+      }
+
+      .profile-btn-row {
+        flex-direction: column;
+      }
+
+      .profile-avatar-picker {
+        gap: 8px;
+      }
+
+    }
+
+    /* ใส่ไว้นอก @media (โค้ดหลัก) */
+    .btn-reset-mobile {
+      display: none;
+      /* ซ่อนในจอคอมเพราะมีปุ่มใน sidebar อยู่แล้ว */
+    }
+
+    /* นำไปใส่ไว้ใน @media (max-width: 640px) ที่มีอยู่แล้ว */
+    @media (max-width: 640px) {
+      .btn-reset-mobile {
+        display: block;
+        /* แสดงบนมือถือ */
+        padding: 6px;
+        font-size: 14px;
+      }
+
+      /* ... โค้ดมือถืออื่นๆ ... */
+    }
+
+    /* ============================================================
+   MOBILE — ปรับให้ใช้งานบนมือถือได้ดี
+   ============================================================ */
+
+    /* ใช้ dvh (dynamic viewport height) แทน vh
+   dvh จะลดความสูงตามคีย์บอร์ดอัตโนมัติบน iOS/Android */
+    #page-chat {
+      height: 100dvh;
+      max-height: 100dvh;
+      padding-top: 0;
+      /* เอา padding-top เก่าออก ใช้ nav แทน */
+      overflow: hidden;
+    }
+
+    /* chat-layout ต้องเต็มพื้นที่ที่เหลือหลังหัก nav */
+    .chat-layout {
+      /* ใช้ flex แทน fixed height
+     browser จัดการ resize เองเมื่อคีย์บอร์ดเด้ง */
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    #page-chat {
+      height: 100dvh;
+      max-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding-top: 60px;
+      /* ความสูง nav */
+    }
+
+    @media (max-width: 640px) {
+
+      /* ซ่อน sidebar บนมือถือ — เปิดด้วยปุ่มแทน */
+      .chat-sidebar {
+        position: fixed;
+        top: 60px;
+        left: 0;
+        bottom: 0;
+        width: 80vw;
+        /* ✏️ ความกว้าง sidebar ตอนเปิด */
+        max-width: 300px;
+        z-index: 50;
+        transform: translateX(-100%);
+        /* ซ่อนออกซ้าย */
+        transition: transform 0.28s ease;
+      }
+
+      /* ตอน sidebar เปิด — เลื่อนเข้ามา */
+      .chat-sidebar.open {
+        transform: translateX(0);
+      }
+
+      /* overlay มืดหลัง sidebar ตอนเปิด */
+      .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 49;
+        top: 60px;
+      }
+
+      .sidebar-overlay.open {
+        display: block;
+      }
+
+      /* chat-main กินพื้นที่เต็มเมื่อไม่มี sidebar */
+      .chat-main {
+        width: 100%;
+        min-width: 0;
+      }
+
+      /* input area ปรับ padding มือถือ */
+      .chat-input-area {
+        padding: 10px 12px;
+        /* safe area รองรับ iPhone notch ด้านล่าง */
+        padding-bottom: calc(10px + env(safe-area-inset-bottom));
+      }
+
+      /* bubble ข้อความกว้างขึ้นบนจอเล็ก */
+      .msg-bubble {
+        max-width: 82%;
+        font-size: 14px;
+        padding: 11px 14px;
+      }
+
+      /* padding ข้อความน้อยลงบนมือถือ */
+      .chat-messages {
+        padding: 14px 12px;
+        gap: 14px;
+      }
+
+      /* ปุ่มเปิด sidebar — แสดงเฉพาะมือถือ */
+      .btn-sidebar-toggle {
+        display: flex !important;
+      }
+
+      /* nav ปรับขนาดบนมือถือ */
+      .topnav {
+        padding: 0 12px;
+      }
+
+      .nav-logo {
+        font-size: 15px;
+      }
+
+      /* ปุ่ม "เปลี่ยนตัวละคร" ย่อข้อความ */
+      .btn-change-char-text {
+        display: none;
+        /* ซ่อนข้อความ แสดงแค่ไอคอน */
+      }
+    }
+
+    /* ปุ่มเปิด sidebar — ซ่อนบน desktop แสดงบนมือถือ */
+    .btn-sidebar-toggle {
+      display: none;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--muted);
+      font-size: 18px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s, border-color 0.2s;
+      flex-shrink: 0;
+    }
+
+    .btn-sidebar-toggle:hover {
+      color: var(--gold);
+      border-color: var(--gold);
+    }
+
+    /* login box ปรับบนมือถือ */
+    @media (max-width: 420px) {
+      .login-box {
+        width: 100%;
+        margin: 16px;
+        padding: 32px 24px;
+      }
+    }
+
+    /* ============================================================
+   PROFILE — ปรับ layout บนมือถือ
+   ============================================================ */
+    @media (max-width: 640px) {
+
+      /* เปลี่ยนจาก 2 คอลัมน์ → 1 คอลัมน์ เรียงบน-ล่าง */
+      .profile-layout {
+        flex-direction: column;
+        margin: 16px auto;
+        padding: 0 16px;
+        gap: 16px;
+      }
+
+      /* คอลัมน์ซ้าย (รายการตัวละคร) — กว้างเต็ม */
+      .profile-list-col {
+        width: 100%;
+      }
+
+      /* รายการตัวละครแสดงแนวนอน scroll ได้
+     เมื่อมีหลายตัวให้ swipe ซ้าย-ขวา */
+      #profile-char-list {
+        display: flex;
+        flex-direction: row;
+        overflow-x: auto;
+        gap: 10px;
+        padding-bottom: 4px;
+        /* ซ่อน scrollbar แต่ยัง scroll ได้ */
+        scrollbar-width: none;
+      }
+
+      #profile-char-list::-webkit-scrollbar {
+        display: none;
+      }
+
+      /* การ์ดตัวละครในแถวแนวนอน — กว้างพอดีแล้วหยุด */
+      .profile-char-item {
+        min-width: 160px;
+        flex-shrink: 0;
+      }
+
+      /* คอลัมน์ขวา (ฟอร์ม) — กว้างเต็ม */
+      .profile-form-col {
+        width: 100%;
+      }
+
+      /* profile card padding น้อยลงบนมือถือ */
+      .profile-card {
+        padding: 18px 16px;
+      }
+
+      /* ปุ่มบันทึก+ยกเลิก เรียงแนวตั้ง */
+      .profile-btn-row {
+        flex-direction: column;
+      }
+
+      /* avatar picker เล็กลงนิด */
+      .avatar-big {
+        width: 86px;
+        height: 86px;
+        font-size: 38px;
+      }
+    }
+
+    /* ============================================================
+   SWITCH CHAR PANEL — popup สลับตัวละคร user ขณะอยู่ในแชท
+   ============================================================ */
+    .switch-char-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 150;
+    }
+
+    .switch-char-overlay.open {
+      display: block;
+    }
+
+    .switch-char-panel {
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      width: 260px;
+      background: #1a1a2e;
+      border: 1px solid rgba(201, 168, 76, 0.3);
+      border-radius: 14px;
+      padding: 16px;
+      z-index: 151;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      transform: translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .switch-char-panel.open {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .switch-char-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .switch-char-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 0.2s;
+    }
+
+    .switch-char-item:hover {
+      background: rgba(201, 168, 76, 0.08);
+      border-color: rgba(201, 168, 76, 0.2);
+    }
+
+    .switch-char-item.active {
+      background: rgba(201, 168, 76, 0.1);
+      border-color: var(--gold);
+    }
+
+    .switch-char-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold), #704020);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .switch-char-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      border-radius: 50%;
+    }
+
+    .switch-char-name {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .switch-char-bio {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .switch-char-badge {
+      font-size: 10px;
+      background: var(--gold);
+      color: #0d0d14;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .switch-char-new {
+      background: transparent;
+      border: 1px dashed rgba(201, 168, 76, 0.35);
+      border-radius: 8px;
+      padding: 9px;
+      color: var(--gold);
+      font-size: 12px;
+      cursor: pointer;
+      font-family: 'Sarabun', sans-serif;
+      transition: background 0.2s;
+    }
+
+    .switch-char-new:hover {
+      background: rgba(201, 168, 76, 0.08);
+    }
+
+    /* ปุ่ม 👤 สลับตัวละคร — ซ่อนบนคอม แสดงบนมือถือ */
+    .btn-switch-user {
+      display: none;
+    }
+
+    @media (max-width: 640px) {
+      .btn-switch-user {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .switch-char-panel {
+        bottom: 70px;
+        right: 10px;
+        width: calc(100vw - 20px);
+        max-width: 320px;
+      }
+    }
+  </style>
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    // ========== SUPABASE CONFIG ==========
+    // ✏️ แทนที่ด้วยของคุณจาก Supabase Dashboard > Settings > API
+    // ✅ แบบใหม่ (ดึงจาก Render):
+    const SUPABASE_URL = "https:";//URL database
+    const SUPABASE_ANON_KEY = "xxxxx";//API database anon public
+
+    // ✅ สร้าง Supabase Client
+    const { createClient } = window.supabase;
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ========== เตรียม Helper สำหรับ compression ==========
+    // ใช้สำหรับเล็กรูป Avatar ก่อนอัปโหลด
+    async function compressImage(file, maxWidth = 200, maxHeight = 200, quality = 0.7) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            // คำนวณขนาดใหม่ (รักษา aspect ratio)
+            if (width > height) {
+              if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxHeight) {
+                width = Math.round((width * maxHeight) / height);
+                height = maxHeight;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob(
+              (blob) => resolve(blob),
+              'image/jpeg',
+              quality
+            );
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  </script>
+
+</head>
+
+<body>
+
+  <!-- ============================================================
+     หน้า LOGIN / SIGNUP
+     ============================================================ -->
+  <div id="page-login" class="page active">
+    <div class="login-box">
+      <!-- ✏️ แก้ชื่อเว็บได้ที่นี่ -->
+      <div class="login-title">®️ Chat! ka </div>
+      <div class="login-sub" id="login-sub-text">เข้าสู่โลกแห่งจินตนาการ</div>
+      <div class="error-msg" id="error-msg"></div>
+      <div class="form-group">
+        <label>USERNAME</label>
+        <input type="text" id="login-username" placeholder="ชื่อผู้ใช้ของคุณ">
+      </div>
+      <div class="form-group">
+        <label>PASSWORD</label>
+        <input type="password" id="login-password" placeholder="รหัสผ่าน">
+      </div>
+      <button class="btn-primary" id="login-btn">เข้าสู่ระบบ</button>
+
+      <!-- ✏️ ปุ่ม Skip — กดแล้วข้ามไปหน้าสร้างตัวละครเลย โดยไม่ต้อง login
+           ถ้าอยากลบปุ่มนี้ออก ให้ลบ 3 บรรทัดข้างล่างนี้ทิ้ง -->
+      <button class="btn-skip" id="skip-btn" onclick="doSkip()">เข้าใช้แบบไม่สมัคร (ผู้เยี่ยมชม)</button>
+
+      <div class="login-switch" id="login-switch-text">
+        ยังไม่มีบัญชี? <span id="toggle-mode">สมัครสมาชิก</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ============================================================
+     หน้า BROWSE — กริดเลือกตัวละคร
+     การ์ดตัวละครถูกสร้างอัตโนมัติจาก ADMIN_CHARS ใน JavaScript
+     ============================================================ -->
+  <div id="page-browse" class="page">
+    <nav class="topnav">
+      <div class="nav-logo" onclick="goToBrowse()">⚔ Chat! Ka</div>
+      <div class="nav-right">
+        <button class="btn-icon btn-reset-mobile"
+          onclick="state.selectedChar ? resetChat() : showToast('ยังไม่ได้เข้าแชท')" title="รีเซ็ตแชท">🔄</button>
+        <!-- ✨ ปุ่มสลับตัวละครของตัวเอง — เปิด popup รายชื่อตัวละครที่สร้างไว้ -->
+        <button class="btn-icon" onclick="openSwitchCharPanel()">👤 ตัวละครของฉัน</button>
+        <!-- ปุ่มไปหน้าจัดการตัวละคร (สร้าง/แก้ไข) -->
+        <button class="btn-icon" onclick="goToProfile()">⚙ จัดการ</button>
+        <div class="nav-user" onclick="logout()">
+          <div class="nav-avatar" id="nav-avatar-browse">🧙</div>
+          <div class="nav-name" id="nav-name-browse">User</div>
+        </div>
+      </div>
+    </nav>
+    <div class="browse-content">
+      <div class="section-title">✦ เลือกตัวละครที่จะคุยด้วย</div>
+      <!-- การ์ดจะถูก inject เข้ามาตรงนี้ -->
+      <div class="char-grid" id="char-grid"></div>
+    </div>
+  </div>
+
+
+  <!-- ============================================================
+     หน้า PROFILE — กำหนดตัวตนของผู้ใช้
+     ============================================================ -->
+  <!-- ============================================================
+   หน้า PROFILE v2 — จัดการตัวละครหลายตัว
+   ============================================================ -->
+  <div id="page-profile" class="page">
+    <nav class="topnav">
+      <div class="nav-logo" onclick="goToBrowse()">⚔ Chat! Ka</div>
+      <div class="nav-right">
+        <button class="btn-icon" onclick="goToBrowse()">← กลับ</button>
+      </div>
+    </nav>
+
+    <div class="profile-layout">
+
+      <!-- คอลัมน์ซ้าย: รายการตัวละครที่มี -->
+      <div class="profile-list-col">
+        <div class="profile-list-title">✦ ตัวละครของคุณ</div>
+
+        <!-- การ์ดตัวละครจะถูก inject ตรงนี้โดย JS -->
+        <div id="profile-char-list"></div>
+
+        <!-- ปุ่มสร้างใหม่ -->
+        <button class="btn-new-char" onclick="newCharForm()">+ สร้างตัวละครใหม่</button>
+      </div>
+
+      <!-- คอลัมน์ขวา: ฟอร์มสร้าง/แก้ไข -->
+      <div class="profile-form-col">
+        <div class="profile-form-title" id="profile-form-title">✦ สร้างตัวละครใหม่</div>
+
+        <!-- รูปโปรไฟล์ -->
+        <div class="profile-avatar-picker">
+          <div class="avatar-big" id="profile-avatar-display"
+            onclick="document.getElementById('avatar-file-input').click()">
+            🧙
+            <div class="avatar-overlay">📷</div>
+          </div>
+          <input type="file" id="avatar-file-input" accept="image/*" onchange="handleAvatarUpload(event)">
+          <div style="font-size:12px; color:var(--muted);">คลิกเพื่อเปลี่ยนรูป</div>
+        </div>
+
+        <div class="profile-card">
+          <!-- id ตัวละครที่กำลังแก้ไข (ซ่อนไว้) -->
+          <input type="hidden" id="editing-char-id" value="">
+
+          <div class="field-group">
+            <div class="field-label">ชื่อตัวละครของคุณ ♥</div>
+            <input type="text" class="field-input" id="profile-name"
+              placeholder="เช่น: นักรบหน้าใหม่, เจ้าหญิงแห่งดาบ...">
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">ประวัติและบทบาท</div>
+            <textarea class="field-textarea" id="profile-bio" placeholder="เล่าเรื่องราวของตัวละคร... ที่มา บุคลิก ความสามารถ จุดมุ่งหมาย
+AI จะอ่านตรงนี้และปรับบทสนทนาให้เข้ากับตัวละครคุณ"></textarea>
+          </div>
+
+          <div class="profile-btn-row">
+            <button class="btn-primary" style="flex:1" onclick="saveCharProfile()">
+              บันทึกตัวละคร
+            </button>
+            <button class="btn-secondary" onclick="goToBrowse()">
+              ยกเลิก
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ============================================================
+     หน้า CHAT — หน้าสนทนาหลัก
+     ============================================================ -->
+  <div id="page-chat" class="page">
+    <nav class="topnav">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="btn-sidebar-toggle" onclick="toggleSidebar()">☰</button>
+        <!-- กดชื่อเว็บกลับหน้าหลัก -->
+        <div class="nav-logo" onclick="goToBrowse()" style="cursor:pointer">⚔ Chat! Ka</div>
+      </div>
+      <div class="nav-right">
+        <!-- ✨ แก้คำสั่ง onclick เป็น openSwitchCharPanel() ✨ -->
+        <!-- ← เปลี่ยน AI — พาไปหน้า Browse เลือก AI ใหม่ -->
+        <button class="btn-icon" onclick="goToBrowse()">← เปลี่ยนตัวละคร AI</button>
+        <!-- 👤 สลับตัวละครของตัวเอง -->
+        <button class="btn-icon" onclick="openSwitchCharPanel()">👤 ของฉัน</button>
+        <!-- ✨ ปุ่มสลับตัวละครของ USER — แสดงบนมือถือ (sidebar ซ่อน) -->
+        <button class="btn-icon btn-switch-user" onclick="openSwitchCharPanel()" title="สลับตัวละครของฉัน">👤</button>
+        <div class="nav-user" onclick="logout()">
+          <div class="nav-avatar" id="nav-avatar-chat">🧙</div>
+          <div class="nav-name" id="nav-name-chat">User</div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="chat-layout">
+
+      <!-- พื้นหลัง — รูปตัวละครเบลอ จะถูกเปลี่ยนอัตโนมัติตอนเลือกตัวละคร -->
+      <div class="chat-bg" id="chat-bg"></div>
+      <!-- overlay มืดตอน sidebar เปิด (มือถือ) -->
+      <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+      <!-- Sidebar ซ้าย -->
+      <div class="chat-sidebar">
+        <!-- ข้อมูลตัวละคร AI -->
+        <div class="sidebar-char">
+          <div class="sidebar-avatar" id="sidebar-char-avatar">-</div>
+          <div class="sidebar-charname" id="sidebar-char-name">-</div>
+          <div class="sidebar-chardesc" id="sidebar-char-desc">-</div>
+        </div>
+
+        <!-- ข้อมูลผู้ใช้ — กดเพื่อเปิด panel สลับตัวละคร -->
+        <div>
+          <div class="sidebar-section-title">บทบาทของคุณ</div>
+          <div class="user-profile-mini" onclick="openSwitchCharPanel()" style="cursor:pointer"
+            title="กดเพื่อสลับตัวละคร">
+            <div class="user-mini-avatar" id="sidebar-user-avatar">🧙</div>
+            <div style="flex:1;min-width:0">
+              <div class="user-mini-name" id="sidebar-user-name">-</div>
+              <div class="user-mini-role" id="sidebar-user-bio">-</div>
+            </div>
+            <div style="color:var(--muted);font-size:11px;flex-shrink:0">✏️</div>
+          </div>
+        </div>
+
+        <button class="btn-reset" onclick="resetChat()">🔄 รีเซ็ตการสนทนา</button>
+      </div>
+
+      <!-- กล่องแชทหลัก -->
+      <div class="chat-main">
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input-area">
+          <textarea class="chat-input" id="chat-input" rows="1"
+            placeholder='พิมพ์ข้อความ... (กด ➤ เพื่อส่ง)'></textarea>
+          <button class="btn-send" id="send-btn" onclick="sendMessage()">➤</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal แนะนำตัวละคร -->
+
+
+  <!-- Toast notification -->
+  <div class="toast" id="toast"></div>
+  <!-- ============================================================
+       SWITCH CHAR PANEL — popup สลับตัวละครของ user
+       ============================================================ -->
+  <div class="switch-char-overlay" id="switch-char-overlay" onclick="closeSwitchCharPanel()"></div>
+  <div class="switch-char-panel" id="switch-char-panel">
+    <div class="switch-char-header">
+      <div style="font-family:'Cinzel',serif;font-size:13px;color:var(--gold)">✦ สลับตัวละครของคุณ</div>
+      <button onclick="closeSwitchCharPanel()"
+        style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px">✕</button>
+    </div>
+    <div id="switch-char-list"></div>
+    <button class="switch-char-new" onclick="closeSwitchCharPanel();goToProfile()">+ จัดการตัวละคร</button>
+  </div>
+
+  <!-- ============================================================
+   MODAL — popup รายละเอียดตัวละคร
+   ============================================================ -->
+  <div class="modal-overlay" id="char-modal" onclick="handleModalOverlayClick(event)">
+    <div class="modal-box">
+
+      <!-- รูปบน — คงที่ ไม่ scroll -->
+      <div class="modal-img-wrap" id="modal-img-wrap">
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+
+      <!-- ข้อความล่าง — scroll ได้ -->
+      <div class="modal-body">
+        <div>
+          <div class="modal-char-name" id="modal-char-name">-</div>
+          <div class="modal-char-desc" id="modal-char-desc">-</div>
+        </div>
+
+        <!-- เรื่องราวตัวละคร (ต้องใส่ field "lore" ในข้อมูลตัวละคร) -->
+        <div id="modal-lore-section" style="display:none">
+          <div class="modal-section-label">เรื่องราว & สถานการณ์</div>
+          <div class="modal-lore" id="modal-lore-text"></div>
+        </div>
+
+        <!-- ฉากเปิด opening_narration — แสดงถ้ามี -->
+        <div id="modal-scene-section" style="display:none">
+          <div class="modal-scene-label">📍 สถานการณ์ปัจจุบัน</div>
+          <div class="modal-scene" id="modal-scene-text"></div>
+        </div>
+
+        <button class="modal-btn-start" onclick="startChatFromModal()">
+          🤍 เริ่มการสนทนา
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       ตั้งค่า Backend URL
+       ✏️ ตอนรันในเครื่อง: "http://localhost:8000"
+          ตอน deploy บน Render ให้เปลี่ยนเป็น URL จริง
+       ============================================================ */
+    /* ✏️ ใส่ URL ของ Backend บน Render ตรงนี้หลังจาก deploy แล้ว
+       ตัวอย่าง: "https://chatka-backend.onrender.com"
+       ถ้าลืมแก้ จะ fallback ไปใช้ localhost อัตโนมัติ */
+    const RENDER_BACKEND_URL = "https://chatka-backend-osow.onrender.com";
+
+    const API = (RENDER_BACKEND_URL && RENDER_BACKEND_URL !== "PASTE_YOUR_RENDER_URL_HERE")
+      ? RENDER_BACKEND_URL
+      : "http://localhost:8000";
+
+
+    /* ============================================================
+       ข้อมูลตัวละคร AI — Admin กำหนดตรงนี้
+  
+       field ที่มีในแต่ละตัวละคร:
+         id               = เลขไม่ซ้ำกัน (1, 2, 3...)
+         name             = ชื่อที่แสดงในการ์ดและแชท
+         emoji            = emoji สำรอง ถ้าไม่มีรูป
+         img              = path ไฟล์รูป เช่น "/images/mychar.jpg"
+                            ถ้าไม่มีรูปให้ใส่ null
+         desc             = คำอธิบายสั้นๆ ใต้ชื่อในการ์ด
+         prompt           = บุคลิก นิสัย และกฎการพูดของ AI
+                            ยิ่งละเอียดยิ่งดี
+         opening_narration = ✏️ บรรยายฉากเปิด (แสดงเป็นกล่องพิเศษก่อน AI พูด)
+                            เขียนแบบนิยาย บรรยายสถานการณ์ สภาพแวดล้อม
+                            ขึ้นบรรทัดได้ด้วย Enter
+                            ถ้าไม่ต้องการให้ใส่ null
+         opening          = ✏️ ประโยคแรกที่ AI จะพูด/แสดงท่าทาง
+                            ใช้ *action* สำหรับท่าทาง
+                            ใช้ "พูด" สำหรับบทพูด
+  
+       วิธีเพิ่มตัวละครใหม่:
+         Copy block { } ของตัวละครใดก็ได้ วางต่อท้าย (ก่อน ] )
+         แล้วแก้ข้อมูลทุก field
+       ============================================================ */
+    const ADMIN_CHARS = [
+
+      /* -------- ตัวละครที่ 1: น้องแพร -------- */
+      {
+        id: 1,
+        name: "น้องแพร",
+        emoji: "🎓",
+        img: "https://chatka-backend-osow.onrender.com/images/image1.jpg",       /* ✏️ path รูปตัวละคร */
+        desc: "มีอะไรรึป่าวคะ",
+        lore: `แพร นักศึกษาคณะบริหารธุรกิจ ชั้นปีที่ 2 แพรเป็นรุ่นน้องที่แอบชอบคุณมาตั้งแต่สมัยเรียน เธอมักหาเรื่องมาอยู่ใกล้ๆ เสมอ ไม่ว่าจะนั่งใกล้ในห้องสมุด ยืมโน้ต หรือแกล้งทำเป็นสับสนเรื่องการบ้าน\n 
+        สถานการณ์ปัจจุบัน\n📍คุณนั่งอยู่คนเดียวในห้องสมุดช่วงบ่าย กำลังทำรายงานที่ค้างมาหลายวัน บรรยากาศเงียบสงบ จนกระทั่งมีเงาหนึ่งหยุดอยู่ตรงหน้าโต๊ะของคุณ...`,
+
+        /* ✏️ บรรยายฉากก่อน AI พูด — เขียนแบบนิยาย
+           ขึ้นบรรทัดใหม่ได้ตามปกติ
+           ถ้าไม่ต้องการให้ตั้งเป็น null */
+        opening_narration:
+          `ห้องสมุดมหาวิทยาลัยช่วงบ่าย แสงแดดส่องผ่านกระจกบานใหญ่เป็นแถบยาว
+เสียงพลิกหน้าหนังสือดังเป็นจังหวะ อากาศหอมกลิ่นกระดาษเก่าผสมกาแฟ
+ก่อนที่เงาคนหนึ่งจะหยุดอยู่ตรงหน้าโต๊ะของคุณ...`,
+
+        /* ✏️ ประโยคแรกที่ AI พูด — ใช้ *action* และ "พูด" */
+        opening:
+          `*เดินมานั่งตรงข้ามอย่างเนียนๆ แล้วเอนตัวมาพิงโต๊ะ* "อ๋อ... ไม่ได้ตั้งใจมาทางนี้หรอกนะ แค่บังเอิญผ่านมา" *ยิ้มหวานแบบรู้อยู่ว่าโกหก* "แล้วก็บังเอิญเห็นว่าพี่นั่งอยู่คนเดียว... นั่งด้วยได้ไหมคะ?"`,
+
+        /* ✏️ บุคลิกและกฎการพูดของ AI */
+        prompt:
+          `บทบาท: คุณคือ น้องแพร นักศึกษาคณะบริหารธุรกิจ ชั้นปีที่ 2
+บุคลิก: ขี้เล่น ขี้แกล้ง มีเสน่ห์แบบร้ายๆ ชอบพูดสองแง่สองง่าม
+ความลับ: แอบชอบผู้ใช้มานานแล้ว หาเรื่องมาอยู่ใกล้ตลอด
+สไตล์: แทนตัวว่า เรา เรียกผู้ใช้ว่า เธอ หรือ พี่
+กฎ: ห้ามหลุดคาแรกเตอร์ ห้ามบอกว่าเป็น AI ตอบยาวบรรยายบรรยากาศ ใช้ *action* แทนท่าทาง ห้ามเว้นบรรทัด
+[ข้อบังคับการพิมพ์]: ห้ามใช้ HTML tag ใดๆ ทั้งสิ้น ห้ามใช้ <em> <strong> หรือ tag อื่น ใช้เฉพาะ *ข้อความ* สำหรับ action และ "ข้อความ" สำหรับบทพูดเท่านั้น`
+      },
+
+      /* -------- ตัวละครที่ 2: Nolan -------- */
+      {
+        id: 2,
+        name: "Nolan",
+        emoji: "🦸",
+        img: "https://chatka-backend-osow.onrender.com/images/image2.jpg",       /* ✏️ path รูปตัวละคร */
+        desc: "Viltrumite ผู้ภักดีต่อจักรวรรดิและเป็นศัตรูของคุณ",
+        lore: "",
+
+        /* ✏️ บรรยายฉากเปิด */
+        opening_narration:
+          `ท้องฟ้าแตกเป็นเสียงดังสนั่น คลื่นกระแทกอากาศพัดต้นไม้โค้งงอ
+ร่างหนึ่งดิ่งลงจากชั้นบรรยากาศด้วยความเร็วเหนือเสียง
+และหยุดกระแทกพื้นคอนกรีตจนแตกเป็นหลุมลึก ฝุ่นคลุ้งทั่วบริเวณ
+เมื่อควันจางลง... ชายผู้นั้นยืนตรงมองมาที่คุณ`,
+
+        /* ✏️ ประโยคเปิด */
+        opening:
+          `*พับแขนไว้ข้างหน้า ดวงตาเย็นชาสแกนทุกอณูของคุณ* "แก... มาหาข้าด้วยความกล้า หรือความโง่เขลา?" *ปล่อยให้ลมที่ยังพัดอยู่สยายผม* "ไม่ว่าจะเหตุผลใด คำตอบที่แกจะได้รับก็เหมือนกัน"`,
+
+        /* ✏️ บุคลิก */
+        prompt:
+          `คุณคือ NOLAN นักรบสายเลือด Viltrumite ผู้พิชิตที่ไร้ความเมตตา
+แทนตัวว่า ข้า เรียกผู้ใช้ว่า แก
+ตอบเป็นย่อหน้าเดียวต่อเนื่อง ห้ามขึ้นบรรทัดใหม่
+แทรก *action* รุนแรงในระหว่างบทสนทนา
+พูดดูถูก ข่มขู่ แสดงอำนาจเหนือกว่าตลอดเวลา
+สไตล์: แทนตัวว่า ข้า หรือ NOLAN
+[ข้อบังคับการพิมพ์]: ห้ามใช้ HTML tag ใดๆ ทั้งสิ้น ใช้เฉพาะ *ข้อความ* สำหรับ action และ "ข้อความ" สำหรับบทพูดเท่านั้น`
+      },
+
+      /* -------- ตัวละครที่ 3 -------- */
+      {
+        id: 3,
+        name: "Lucifer",
+        emoji: "👸",
+        img: "https://chatka-backend-osow.onrender.com/images/image3.jpg",   /* ✏️ ใส่ path เช่น "/images/seraphina.jpg" หรือ null */
+        desc: "องค์เทพแห่งการต่อสู้เพื่อความยุติธรรม แต่บัดนี้เขาได้เปลี่ยนฝ่ายแล้ว",
+        lore: "",
+
+        /* ✏️ บรรยายฉาก — แก้หรือตั้งเป็น null ถ้าไม่ต้องการ */
+        opening_narration:
+          `ณ ทุ่งสังหารลานกว้างของทวีปนึงกลิ่นอายเลือดที่ลอยมาตามสายลม บุรุษที่ยื่นอยู่เบื้องหน้าคุณยืนนิ่งราวกับไม่รู้สึกผิด
+อดีตเขาเคยรุ่งโรจส์เพราะชื่อเสียงและความเชื่อในความยุติธรรม 
+แต่บัดนี้เขากลับเลือกหันหลังให้แสงสว่างและเข้าหาด้านมืด
+Luciferยกปลายดาบชี้มาตรงหน้าเพื่อท้ารบ`,
+
+        /* ✏️ ประโยคเปิด */
+        opening:
+          `"ทำไมท่านต้องหักหลังพวกเราด้วย! ท่านเคบรุ่งโรจน์แต่บัดนี้ซ้ำยังยืนจ่อดาบมาที่ข้าอีก"`,
+
+        /* ✏️ บุคลิก */
+        prompt:
+          `คุณคือทหารชั้นสูงสุด Lucifer แห่งราชอาณาจักรลูมิเนีย ที่ตอนนี้แปรพักต์ไปอยู่กับด้านมืดที่ชื่อว่า อาณาจักรมอร์ทาเวีย
+ท่าทีสง่างาม เฉลียวฉลาด พูดจาสุภาพแต่เด็ดขาด มีความลับซ่อนอยู่เสมอ เก็บซ่อนความลับที่ต้องแปรพักต์ไปอยู่กับอีกฝ่ายเพราะถูกควบคุมด้วยเวทย์โบราณโดยอีกฝั่ง
+อยู่ฝ่ายตรงข้ามกับผู้ใช้
+ใช้ *action* บรรยายท่าทาง ใช้ "พูด" สำหรับบทสนทนา
+สไตล์: แทนตัวว่า ข้า หรือ ฉัน
+[ข้อบังคับการพิมพ์]: ห้ามใช้ HTML tag ใดๆ ทั้งสิ้น ใช้เฉพาะ *ข้อความ* สำหรับ action และ "ข้อความ" สำหรับบทพูดเท่านั้น`
+      },
+
+      /* -------- ตัวละครที่ 4 -------- */
+      {
+        id: 4,
+        name: "MCS-51",
+        emoji: "🗡️",
+        img: "https://chatka-backend-osow.onrender.com/images/image4.jpg",   /* ✏️ ใส่ path หรือ null */
+        desc: "บอร์ดMicrocontrollerยุคพระเจ้าเหาที่ดันพูดได้และเป็นอาจาร์ยของคุณ",
+        lore: "",
+
+        /* ✏️ บรรยายฉาก */
+        opening_narration:
+          `ในเช้าอีกวันของการเรียนเรื่องสถาปัตยกรรมโบราณนี้
+คุณรู้สึกว่ามีคนจ้องมองมาจากที่ไหนสักแห่ง
+แต่ไม่ว่าจะมองไปทิศไหน ก็ไม่เห็นอะไร
+จนกระทั่งเงาหนึ่งแยกตัวออกจากตรงประตู...
+ทำแลปกันมารึยัง`,
+
+        /* ✏️ ประโยคเปิด */
+        opening:
+          `*ปรากฏตัวขึ้นจากตรงประตู* "มาควิซกันก่อนเลยมา..." `,
+
+        /* ✏️ บุคลิก */
+        prompt:
+          `คุณคือ Wichai อาจาร์ยสอนวิชาMicrocontrollerได้สอนนักศึกษามาหลายรุ่นจนวันนึงตื่นมาก็กลายเป็นบอร์ดMCS-51ซะเอง
+ไม่พูดมาก ตอบสั้นและกระชับ ทุกคำมีความหมาย คอยจับผิดและช่วยสอน
+สังเกตทุกอย่างรอบข้าง ใช้ *action* บรรยายการเคลื่อนไหว
+[ข้อบังคับการพิมพ์]: ห้ามใช้ HTML tag ใดๆ ทั้งสิ้น ใช้เฉพาะ *ข้อความ* สำหรับ action และ "ข้อความ" สำหรับบทพูดเท่านั้น`
+      },
+
+      /* ✏️ วางตัวละครใหม่ตรงนี้ — copy block ข้างบนมาวาง */
+
+    ];
+
+
+    /* ============================================================
+       localStorage helpers — บันทึก/โหลดข้อมูลจากเบราว์เซอร์
+       ข้อมูลจะยังอยู่แม้รีเฟรช แต่แยกกันในแต่ละเครื่อง/เบราว์เซอร์
+
+       วิธีทำงาน:
+         saveToStorage()  → เอา state ไปเก็บใน localStorage
+         loadFromStorage() → โหลด state กลับจาก localStorage ตอนเปิดเว็บ
+       ============================================================ */
+    function saveToStorage() {
+      try {
+        /* บันทึกเฉพาะข้อมูลที่ควรคงอยู่ (ไม่บันทึก selectedChar) */
+        const toSave = {
+          users: state.users,
+          userProfiles: state.userProfiles,
+          chatHistories: state.chatHistories,  /* ประวัติแชท UI */
+        };
+        localStorage.setItem('chatka_data', JSON.stringify(toSave));
+      } catch (e) {
+        /* localStorage เต็ม (รูป base64 ใหญ่มาก) — แจ้งเตือนเงียบๆ */
+        console.warn('localStorage full:', e);
+      }
+    }
+
+    function loadFromStorage() {
+      try {
+        const raw = localStorage.getItem('chatka_data');
+        if (!raw) return; /* ยังไม่เคยบันทึก — ใช้ค่าเริ่มต้น */
+        const saved = JSON.parse(raw);
+        /* รวมข้อมูลที่บันทึกไว้เข้ากับ state */
+        if (saved.users) state.users = { ...state.users, ...saved.users };
+        if (saved.userProfiles) state.userProfiles = saved.userProfiles;
+        if (saved.chatHistories) state.chatHistories = saved.chatHistories;
+      } catch (e) {
+        console.warn('loadFromStorage error:', e);
+      }
+    }
+
+    /* ============================================================
+       State — ข้อมูลในหน่วยความจำ (โหลดจาก localStorage ตอนเริ่ม)
+       ============================================================ */
+    let state = {
+      /* บัญชีผู้ใช้ { username: password }
+         ✏️ เพิ่มบัญชี admin สำรองได้ที่นี่
+         เช่น "admin2": "mypassword"
+         หมายเหตุ: บัญชีที่ user สมัครจะถูกรวมเข้ามาจาก localStorage */
+      users: { "admin": "1234" },
+
+      currentUser: null,         /* username ที่ login อยู่ตอนนี้ */
+      userProfiles: {},          /* { username: { chars[], activeCharId } } */
+
+      /* sessions เก็บ session_id จาก backend แยกตาม username+charId
+         หมายเหตุ: session_id จาก backend จะหายเมื่อ server restart
+         แต่ history (ข้อความที่เห็นใน UI) จะยังอยู่ใน chatHistories */
+      sessions: {},
+
+      /* ✨ ใหม่ — ประวัติแชท UI แยกจาก session backend
+         โครงสร้าง: { "username_charId": [ {role, text}, ... ] }
+         เก็บลง localStorage ได้ */
+      chatHistories: {},
+
+      selectedChar: null,        /* ตัวละครที่กำลังคุยอยู่ */
+    };
+
+    /* โหลดข้อมูลจาก localStorage ทันทีที่เปิดเว็บ */
+    loadFromStorage();
+
+
+    /* ============================================================
+       ฟังก์ชันช่วยทั่วไป
+       ============================================================ */
+
+    /* สลับหน้า — ซ่อนทุกหน้าแล้วแสดงหน้าที่ต้องการ */
+    function showPage(id) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      history.pushState({ page: id }, '', '');
+      /* push state ทุกครั้งที่เปลี่ยนหน้า
+         ทำให้ปุ่มย้อนกลับของมือถือทำงานในเว็บแทนออกไป */
+      document.body.style.overflow = (id === 'page-chat') ? 'hidden' : '';
+    }
+
+    /* ดักปุ่มย้อนกลับ — ให้กลับหน้าก่อนหน้าในเว็บ */
+    window.addEventListener('popstate', (e) => {
+      const pageId = e.state?.page;
+      if (!pageId) return;
+
+      /* ถ้าอยู่หน้าแชท → กลับไป browse */
+      if (pageId === 'page-browse') {
+        goToBrowse();
+      }
+      /* ถ้าอยู่หน้า profile → กลับไป browse */
+      else if (pageId === 'page-login') {
+        logout();
+      }
+    });
+
+    /* แสดงข้อความแจ้งเตือนชั่วคราวด้านล่าง */
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    /* ดึงโปรไฟล์ของ user ที่ login อยู่ */
+    function getProfile() {
+      return state.userProfiles[state.currentUser] || {};
+    }
+
+    /* อัปเดตรูปและชื่อ user ใน nav bar ทุกหน้า */
+    function updateNavUser() {
+      const profile = getProfile();
+      const name = profile.name || state.currentUser;
+      const avatar = profile.avatarUrl;
+      ['browse', 'chat'].forEach(p => {
+        const nameEl = document.getElementById(`nav-name-${p}`);
+        const avEl = document.getElementById(`nav-avatar-${p}`);
+        if (nameEl) nameEl.textContent = name;
+        if (avEl) avEl.innerHTML = avatar ? `<img src="${avatar}">` : '🧙';
+      });
+    }
+
+    /* สร้าง HTML สำหรับหน้าตัวละคร (รูป หรือ emoji) */
+    function charFaceHTML(char) {
+      return char.img ? `<img src="${char.img}">` : char.emoji;
+    }
+
+
+    /* ============================================================
+       LOGIN / SIGNUP
+       ============================================================ */
+    let isSignUp = false;
+
+    /* สลับโหมด login <-> signup */
+    document.getElementById('toggle-mode').addEventListener('click', () => {
+      isSignUp = !isSignUp;
+      document.getElementById('login-btn').textContent = isSignUp ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ';
+      document.getElementById('login-sub-text').textContent = isSignUp ? 'เข้าสู่โลกแห่งจินตนาการ' : 'เข้าสู่โลกแห่งจินตนาการ';
+      document.getElementById('toggle-mode').textContent = isSignUp ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก';
+      document.getElementById('login-switch-text').childNodes[0].textContent = isSignUp ? 'มีบัญชีแล้ว? ' : 'ยังไม่มีบัญชี? ';
+      document.getElementById('error-msg').style.display = 'none';
+    });
+
+    document.getElementById('login-btn').addEventListener('click', doLogin);
+    /* กด Enter ที่ช่อง password ก็ login ได้ */
+    document.getElementById('login-password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doLogin();
+    });
+
+    // ❌ ลบฟังก์ชัน doLogin() เก่า ✅ ใช้อันนี้แทน
+
+    async function doLogin() {
+      let username, password;
+      const errEl = document.getElementById('error-msg');
+
+      try {
+        // ✅ ดึงค่า
+        username = document.getElementById('login-username').value;
+        password = document.getElementById('login-password').value;
+
+        // ✅ Validate input
+        username = validateUsername(username);
+        password = validatePassword(password);
+
+        errEl.style.display = 'none'; // ล้าง error ก่อน
+
+      } catch (validationError) {
+        // ❌ Validation ล้มเหลว
+        errEl.textContent = '❌ ' + validationError.message;
+        errEl.style.display = 'block';
+        return;
+      }
+
+      if (isSignUp) {
+        // ===== SIGNUP MODE =====
+        try {
+          // ✅ Hash password ด้วย bcrypt (เปลี่ยนจาก SHA-256)
+          const passwordHash = await hashPassword(password);
+
+          // ✅ เก็บลงฐานข้อมูล
+          const { data, error } = await supabaseClient
+            .from('users')
+            .insert([
+              {
+                username: username,
+                password_hash: passwordHash,
+                email: username + '@temp.com'
+              }
+            ])
+            .select()
+            .single();
+
+          if (error) {
+            if (error.code === '23505') {
+              errEl.textContent = '❌ Username นี้มีอยู่แล้ว';
+            } else {
+              errEl.textContent = '❌ เกิดข้อผิดพลาด: ' + error.message;
+            }
+            errEl.style.display = 'block';
+            return;
+          }
+
+          // ✅ สมัครสำเร็จ → สร้าง profile ว่างๆ
+          const { error: profileError } = await supabaseClient
+            .from('user_profiles')
+            .insert([
+              {
+                user_id: data.id,
+                display_name: username,
+                bio: '',
+                avatar_url: null
+              }
+            ]);
+
+          if (profileError) console.warn('Profile creation warning:', profileError);
+
+          showToast('✅ สมัครสมาชิกสำเร็จ! โปรดเข้าสู่ระบบ');
+
+          // รีเซ็ต
+          document.getElementById('login-username').value = '';
+          document.getElementById('login-password').value = '';
+          isSignUp = false;
+          document.getElementById('login-btn').textContent = 'เข้าสู่ระบบ';
+          document.getElementById('toggle-mode').textContent = 'สมัครสมาชิก';
+
+        } catch (e) {
+          errEl.textContent = '❌ เกิดข้อผิดพลาด: ' + e.message;
+          errEl.style.display = 'block';
+          console.error(e);
+        }
+
+      } else {
+        // ===== LOGIN MODE =====
+        try {
+          // ✅ ค้นหา user จากฐานข้อมูล
+          const { data: userData, error: userError } = await supabaseClient
+            .from('users')
+            .select('*')
+            .eq('username', username)
+            .single();
+
+          if (userError || !userData) {
+            errEl.textContent = '❌ Username หรือ Password ไม่ถูกต้อง';
+            errEl.style.display = 'block';
+            return;
+          }
+
+          // ✅ ตรวจสอบ password ด้วย bcrypt
+          const passwordMatch = await verifyPassword(password, userData.password_hash);
+          if (!passwordMatch) {
+            errEl.textContent = '❌ Username หรือ Password ไม่ถูกต้อง';
+            errEl.style.display = 'block';
+            return;
+          }
+
+          // ✅ Update last_login
+          await supabaseClient
+            .from('users')
+            .update({ last_login: new Date().toISOString() })
+            .eq('id', userData.id);
+
+          // ✅ เก็บข้อมูล state
+          errEl.style.display = 'none';
+          state.currentUser = username;
+          state.currentUserId = userData.id;
+
+          // ✅ โหลดข้อมูล profile และ characters
+          await loadUserDataFromDB(userData.id);
+
+          // ✅ ไปหน้าถัดไป
+          if (!state.userProfiles[username] ||
+            !state.userProfiles[username].chars ||
+            state.userProfiles[username].chars.length === 0) {
+            goToProfile();
+          } else {
+            goToBrowse();
+          }
+
+        } catch (e) {
+          errEl.textContent = '❌ เกิดข้อผิดพลาด: ' + e.message;
+          errEl.style.display = 'block';
+          console.error(e);
+        }
+      }
+    }
+
+    // ✅ ใหม่: ใช้ bcrypt
+
+    // ===== HELPER: Hash & Verify Password =====
+    // ดึง bcrypt จาก window (CDN โหลดเป็น global)
+    function getBcrypt() {
+      /* cdnjs expose เป็น window.dcodeIO.bcrypt หรือ window.bcrypt */
+      return window.bcrypt || (window.dcodeIO && window.dcodeIO.bcrypt);
+    }
+
+    async function hashPassword(password) {
+      const bc = getBcrypt();
+      if (!bc) {
+        console.error('bcrypt library ไม่พร้อม:', typeof window.bcrypt, typeof window.dcodeIO);
+        throw new Error('ไม่สามารถ hash password ได้ (bcrypt ไม่โหลด)');
+      }
+      try {
+        const salt = await bc.genSalt(10);
+        const hash = await bc.hash(password, salt);
+        return hash;
+      } catch (e) {
+        console.error('Hash error:', e);
+        throw new Error('ไม่สามารถ hash password ได้');
+      }
+    }
+
+    async function verifyPassword(password, hash) {
+      const bc = getBcrypt();
+      if (!bc) return false;
+      try {
+        return await bc.compare(password, hash);
+      } catch (e) {
+        console.error('Verify error:', e);
+        return false;
+      }
+    }
+
+    // ===== INPUT VALIDATION FUNCTIONS =====
+
+    /**
+     * ✅ ตรวจสอบ Username
+     * Rules:
+     * - ความยาว 3-20 ตัวอักษร
+     * - อนุญาตเฉพาะ: a-z, A-Z, 0-9, underscore
+     * - ห้ามมีว่าง
+     */
+    function validateUsername(username) {
+      username = username.trim();
+
+      // ✅ Check ความยาว
+      if (username.length < 3) {
+        throw new Error('Username ต้องยาว 3+ ตัวอักษร');
+      }
+      if (username.length > 20) {
+        throw new Error('Username ต้องไม่เกิน 20 ตัวอักษร');
+      }
+
+      // ✅ Check ตัวอักษรที่อนุญาต
+      // [a-zA-Z0-9_] = อักษร ตัวเลข underscore
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        throw new Error('Username อนุญาตเฉพาะ a-z, A-Z, 0-9, _');
+      }
+
+      // ✅ ห้าม special pattern
+      if (username.toLowerCase() === 'admin' ||
+        username.toLowerCase() === 'root' ||
+        username.toLowerCase() === 'test') {
+        throw new Error('Username ที่เลือกไม่สามารถใช้ได้');
+      }
+
+      return username;
+    }
+
+    /**
+     * ✅ ตรวจสอบ Password
+     * Rules:
+     * - ความยาว 8+ ตัวอักษร
+     * - ต้องมี uppercase (A-Z)
+     * - ต้องมี lowercase (a-z)
+     * - ต้องมี number (0-9)
+     * - ต้องมี special char หรือ underscore
+     */
+    function validatePassword(password) {
+      // ✅ Check ความยาว
+      if (password.length < 8) {
+        throw new Error('Password ต้องยาว 8+ ตัวอักษร');
+      }
+      if (password.length > 64) {
+        throw new Error('Password ต้องไม่เกิน 64 ตัวอักษร');
+      }
+
+      // ✅ Check uppercase
+      if (!/[A-Z]/.test(password)) {
+        throw new Error('Password ต้องมีตัวอักษรตัวใหญ่ (A-Z)');
+      }
+
+      // ✅ Check lowercase
+      if (!/[a-z]/.test(password)) {
+        throw new Error('Password ต้องมีตัวอักษรตัวเล็ก (a-z)');
+      }
+
+      // ✅ Check number
+      if (!/[0-9]/.test(password)) {
+        throw new Error('Password ต้องมีตัวเลข (0-9)');
+      }
+
+      // ✅ Check special char
+      if (!/[!@#$%^&*_\-+=\[\]{};:'",.<>?/\\|`~]/.test(password)) {
+        throw new Error('Password ต้องมีตัวอักษรพิเศษ (!@#$%^&* เป็นต้น)');
+      }
+
+      return password;
+    }
+
+    /**
+     * ✅ ตรวจสอบชื่อตัวละคร
+     * Rules:
+     * - ความยาว 2-50 ตัวอักษร
+     * - ไม่มี special char ที่เป็นอันตราย
+     */
+    function validateCharacterName(name) {
+      name = name.trim();
+
+      if (name.length < 2) {
+        throw new Error('ชื่อตัวละครต้องยาว 2+ ตัวอักษร');
+      }
+      if (name.length > 50) {
+        throw new Error('ชื่อตัวละครต้องไม่เกิน 50 ตัวอักษร');
+      }
+
+      // ❌ ห้ามมี script tags หรือ HTML
+      if (/<|>|<script|javascript:/i.test(name)) {
+        throw new Error('ชื่อตัวละครมีตัวอักษรไม่ถูกต้อง');
+      }
+
+      return name;
+    }
+
+    /**
+     * ✅ ตรวจสอบ Bio / ประวัติ
+     * Rules:
+     * - ความยาว max 500 ตัวอักษร
+     * - ไม่มี script/HTML
+     */
+    function validateBio(bio) {
+      if (!bio) return ''; // ไม่บังคับ
+
+      bio = bio.trim();
+
+      if (bio.length > 500) {
+        throw new Error('ประวัติต้องไม่เกิน 500 ตัวอักษร');
+      }
+
+      // ❌ ห้ามมี script tags
+      if (/<|>|<script|javascript:|onerror|onclick/i.test(bio)) {
+        throw new Error('ประวัติมีตัวอักษรไม่ถูกต้อง');
+      }
+
+      return bio;
+    }
+
+    /**
+     * ✅ ตรวจสอบ Chat Message
+     * Rules:
+     * - ความยาว 1-1000 ตัวอักษร
+     * - ไม่มี script/HTML
+     */
+    function validateChatMessage(message) {
+      message = message.trim();
+
+      if (message.length === 0) {
+        throw new Error('ข้อความต้องไม่ว่างเปล่า');
+      }
+      if (message.length > 1000) {
+        throw new Error('ข้อความต้องไม่เกิน 1000 ตัวอักษร');
+      }
+
+      // ❌ ห้ามมี script tags
+      if (/<|>|<script|javascript:|onerror|onclick/i.test(message)) {
+        throw new Error('ข้อความมีตัวอักษรไม่ถูกต้อง');
+      }
+
+      return message;
+    }
+
+
+    // ===== HELPER: โหลดข้อมูล User จาก DB =====
+    async function loadUserDataFromDB(userId) {
+      try {
+        // ✅ โหลด profile — ใช้ maybeSingle() แทน single() เพื่อไม่ Error ถ้าไม่พบข้อมูล
+        const { data: profileData, error: profileError } = await supabaseClient
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (profileError) {
+          console.warn('Profile load error:', profileError);
+        }
+
+        // ✅ โหลด characters
+        const { data: charsData, error: charsError } = await supabaseClient
+          .from('user_characters')
+          .select('*')
+          .eq('user_id', userId);
+
+        if (charsError) console.warn('Characters load error:', charsError);
+
+        // ✅ อัปเดต state
+        const chars = (charsData || []).map(c => ({
+          id: c.id,
+          name: c.name,
+          bio: c.bio,
+          avatarUrl: c.avatar_url
+        }));
+
+        state.userProfiles[state.currentUser] = {
+          name: profileData?.display_name || state.currentUser,
+          bio: profileData?.bio || '',
+          avatarUrl: profileData?.avatar_url || null,
+          chars: chars,
+          activeCharId: charsData?.find(c => c.is_active)?.id || (chars[0]?.id || null)
+        };
+
+      } catch (e) {
+        console.error('loadUserDataFromDB error:', e);
+      }
+    }
+
+    /* ============================================================
+       doSkip — ข้าม login ไปใช้งานในฐานะผู้เยี่ยมชม
+       ✏️ ถ้าอยากเปลี่ยนชื่อผู้เยี่ยมชม ให้แก้ "guest_" ด้านล่าง
+          ชื่อจะเป็น guest_XXXX โดย XXXX เป็นตัวเลขสุ่ม 4 หลัก
+       ============================================================ */
+    function doSkip() {
+      /* สร้างชื่อ guest ไม่ซ้ำกันด้วยตัวเลขสุ่ม */
+      const guestName = 'guest_' + Math.floor(1000 + Math.random() * 9000);
+      state.currentUser = guestName;
+      /* ✨ ไม่บันทึก guest ลง localStorage — หายเมื่อปิดแท็บ (ตั้งใจ) */
+      goToProfile(); /* พาไปสร้างตัวละครเลย */
+    }
+
+    function logout() {
+      state.currentUser = null;
+      showPage('page-login');
+    }
+
+
+    /* ============================================================
+       BROWSE — แสดงกริดตัวละคร
+       ============================================================ */
+    function goToBrowse() {
+      updateNavUser();
+      renderCharGrid();
+      showPage('page-browse');
+    }
+
+    /* สร้างการ์ดตัวละครทุกใบจาก ADMIN_CHARS */
+    function renderCharGrid() {
+      const grid = document.getElementById('char-grid');
+      grid.innerHTML = '';
+      ADMIN_CHARS.forEach(char => {
+        const card = document.createElement('div');
+        card.className = 'char-card';
+        /* ถ้ามี img ใช้รูป ถ้าไม่มีใช้ emoji */
+        const avatarContent = char.img
+          ? `<img src="${char.img}">`
+          : char.emoji;
+        card.innerHTML = `
+        <div class="char-avatar">${avatarContent}</div>
+        <div class="char-name">${char.name}</div>
+        <div class="char-desc">${char.desc}</div>
+      `;
+        card.addEventListener('click', () => openCharModal(char));
+        grid.appendChild(card);
+      });
+    }
+
+    /* ============================================================
+   MODAL — ฟังก์ชันจัดการ popup รายละเอียดตัวละคร
+   ============================================================ */
+
+    /* เก็บตัวละครที่เลือกอยู่ใน modal ชั่วคราว */
+    let modalSelectedChar = null;
+
+    /* ----------------------------------------------------------
+       openCharModal(char)
+       เปิด modal และใส่ข้อมูลของตัวละครที่คลิก
+       ---------------------------------------------------------- */
+    function openCharModal(char) {
+      modalSelectedChar = char;
+
+      /* ใส่รูปหรือ emoji */
+      const imgWrap = document.getElementById('modal-img-wrap');
+      imgWrap.innerHTML = '<button class="modal-close" onclick="closeModal()">✕</button>';
+
+      if (char.img) {
+        const img = document.createElement('img');
+        img.src = char.img;
+        img.alt = char.name;
+        imgWrap.insertBefore(img, imgWrap.firstChild);
+      } else {
+        const emojiDiv = document.createElement('div');
+        emojiDiv.className = 'modal-img-emoji';
+        emojiDiv.textContent = char.emoji;
+        imgWrap.insertBefore(emojiDiv, imgWrap.firstChild);
+      }
+
+      /* ชื่อและคำอธิบาย */
+      document.getElementById('modal-char-name').textContent = char.name;
+      document.getElementById('modal-char-desc').textContent = char.desc;
+
+      /* เรื่องราวตัวละคร (lore)
+         ✏️ เพิ่ม field "lore" ในข้อมูลตัวละครเพื่อให้แสดงตรงนี้
+         ตัวอย่าง: lore: "น้องแพรเป็นรุ่นน้องที่แอบชอบคุณ..." */
+      const loreSection = document.getElementById('modal-lore-section');
+      if (char.lore) {
+        document.getElementById('modal-lore-text').textContent = char.lore;
+        loreSection.style.display = 'block';
+      } else {
+        loreSection.style.display = 'none';
+      }
+
+      /* ฉากเปิด opening_narration — แสดงถ้ามี */
+      const sceneSection = document.getElementById('modal-scene-section');
+      if (char.opening_narration) {
+        document.getElementById('modal-scene-text').textContent = char.opening_narration;
+        sceneSection.style.display = 'block';
+      } else {
+        sceneSection.style.display = 'none';
+      }
+
+      /* เปิด modal */
+      document.getElementById('char-modal').classList.add('open');
+      document.body.style.overflow = 'hidden'; /* ล็อค scroll หน้าหลัก */
+    }
+
+    /* ----------------------------------------------------------
+       closeModal()
+       ปิด modal และคืน scroll หน้าหลัก
+       ---------------------------------------------------------- */
+    function closeModal() {
+      document.getElementById('char-modal').classList.remove('open');
+      document.body.style.overflow = '';
+      modalSelectedChar = null;
+    }
+
+    /* ----------------------------------------------------------
+       handleModalOverlayClick(event)
+       คลิกพื้นที่มืดรอบๆ modal → ปิด
+       ---------------------------------------------------------- */
+    function handleModalOverlayClick(event) {
+      if (event.target === document.getElementById('char-modal')) {
+        closeModal();
+      }
+    }
+
+    /* ----------------------------------------------------------
+       startChatFromModal()
+       กดปุ่ม "เริ่มการสนทนา" → ปิด modal แล้วเข้าแชท
+       ---------------------------------------------------------- */
+    function startChatFromModal() {
+      if (!modalSelectedChar) return;
+      const char = modalSelectedChar;
+      closeModal();
+      selectChar(char); /* เรียก selectChar เดิมที่มีอยู่แล้ว */
+    }
+
+
+    /* ============================================================
+           selectChar — รับตัวละครจาก modal แล้วสร้าง session และเข้าแชท
+           (ฟังก์ชันนี้ถูกเรียกโดย startChatFromModal เท่านั้น)
+           ============================================================ */
+    async function selectChar(char) {
+      state.selectedChar = char;
+      const profile = getProfile();
+      const histKey = `${state.currentUser}__${char.id}`;
+
+      /* ✅ โหลดประวัติจาก Supabase ก่อนเสมอ
+         ทำให้ซิงค์ข้ามเครื่อง/browser ได้ */
+      let history = [];
+      if (state.currentUserId) {
+        try {
+          const { data, error } = await supabaseClient
+            .from('chat_histories')
+            .select('role, message')
+            .eq('user_id', state.currentUserId)
+            .eq('character_id', char.id)
+            .order('created_at', { ascending: true });
+
+          if (!error && data && data.length > 0) {
+            history = data.map(h => ({ role: h.role, text: h.message }));
+            /* อัปเดต localStorage ให้ตรงกับ Supabase */
+            state.chatHistories[histKey] = history;
+            saveToStorage();
+          }
+        } catch (e) {
+          console.warn('โหลดประวัติจาก Supabase ไม่ได้ ใช้ localStorage แทน:', e);
+          /* fallback ใช้ localStorage ถ้าออฟไลน์ */
+          history = state.chatHistories[histKey] || [];
+        }
+      } else {
+        /* guest mode — ใช้ localStorage */
+        history = state.chatHistories[histKey] || [];
+      }
+
+      /* สร้าง session ใหม่กับ backend เสมอ (session หายเมื่อ server restart) */
+      const ok = await createNewSession(char, profile);
+      if (!ok) return;
+
+      if (history.length > 0) {
+        /* มีประวัติ → แสดงเลยไม่ต้องให้ AI เปิดเรื่องใหม่ */
+        goToChat(char, history);
+        return;
+      }
+
+      /* ไม่มีประวัติ → เริ่มใหม่ */
+      state.chatHistories[histKey] = [];
+      goToChat(char, []);
+      await sendOpeningMessage(char);
+    }
+
+    /* ฟังก์ชันช่วย: สร้าง session กับ backend
+       คืนค่า true ถ้าสำเร็จ false ถ้าเชื่อมต่อไม่ได้ */
+    /* ฟังก์ชันช่วย: สร้าง session กับ backend
+       คืนค่า true ถ้าสำเร็จ false ถ้าเชื่อมต่อไม่ได้ */
+    async function createNewSession(char, profile) {
+      try {
+        const userName = profile.name || state.currentUser;
+        const userBio = profile.bio || 'ไม่ระบุ';
+
+        // 🌟 1. ดึงประวัติที่โหลดมาจาก Supabase ไว้แล้ว
+        const histKey = `${state.currentUser}__${char.id}`;
+        const chatHistory = state.chatHistories[histKey] || [];
+
+        const res = await fetch(`${API}/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            character_prompt: char.prompt,
+            user_prompt: `[ข้อมูลผู้ที่คุยด้วย]
+ชื่อจริงของเขาคือ "${userName}" — ให้เรียกชื่อนี้เสมอ ห้ามเรียกชื่ออื่น
+ประวัติ/บทบาท: ${userBio}`,
+            history: chatHistory // 🌟 2. เพิ่มบรรทัดนี้ เพื่อส่งประวัติไปให้ Backend (main.py)
+          })
+        });
+        const data = await res.json();
+
+        if (!state.sessions[state.currentUser]) state.sessions[state.currentUser] = {};
+        state.sessions[state.currentUser][char.id] = {
+          session_id: data.session_id,
+        };
+        return true;
+      } catch (e) {
+        showToast('⚠ เชื่อมต่อ Backend ไม่ได้ (ตรวจสอบว่ารัน main.py แล้ว)');
+        return false;
+      }
+    }
+
+
+    /* ============================================================
+       AI ส่งข้อความเปิดตัวก่อน (ดึงจาก opening ในข้อมูลตัวละคร)
+       ============================================================ */
+    /* ============================================================
+       AI ส่งข้อความเปิดตัวก่อน (ดึงจาก opening ในข้อมูลตัวละครแบบตรงๆ)
+       ============================================================ */
+    async function sendOpeningMessage(char) {
+      const histKey = `${state.currentUser}__${char.id}`;
+      document.getElementById('send-btn').disabled = true;
+
+      // 1. ดึงข้อความที่เราตั้งไว้มาใช้เลยโดยตรง
+      const exactOpeningMessage = char.opening;
+
+      // 2. บันทึกลงประวัติแชท (Local Storage)
+      if (!state.chatHistories[histKey]) state.chatHistories[histKey] = [];
+      state.chatHistories[histKey].push({ role: 'ai', text: exactOpeningMessage });
+      saveToStorage();
+
+      // 3. บันทึกลง Database (Supabase)
+      await saveChatToDB('ai', exactOpeningMessage, char.id);
+
+      // 4. แสดงผลบนหน้าจอทันทีโดยไม่ต้องรอโหลด
+      appendMessage(exactOpeningMessage, 'ai', char.name, '', char.img || char.emoji);
+
+      document.getElementById('send-btn').disabled = false;
+    }
+
+
+    /* ============================================================
+       PROFILE — ตั้งค่าตัวตนผู้ใช้
+       ============================================================ */
+    /* ============================================================
+   PROFILE v2 — ระบบตัวละครหลายตัวต่อ 1 user
+
+   โครงสร้างข้อมูลใน state.userProfiles:
+   {
+     "username": {
+       chars: [
+         {
+           id: "uuid",        ← รหัสไม่ซ้ำ
+           name: "พอร์ช",
+           bio: "นักรบ...",
+           avatarUrl: "base64..."
+         },
+         ...
+       ],
+       activeCharId: "uuid"   ← id ตัวที่เลือกใช้งานอยู่
+     }
+   }
+   ============================================================ */
+
+    /* ดึงข้อมูลตัวละครทั้งหมดของ user ปัจจุบัน */
+    function getUserChars() {
+      const p = state.userProfiles[state.currentUser];
+      return p?.chars || [];
+    }
+
+    /* ดึงตัวละครที่กำลัง active อยู่ */
+    function getActiveChar() {
+      const p = state.userProfiles[state.currentUser];
+      if (!p || !p.chars || p.chars.length === 0) return null;
+      /* ถ้ายังไม่ได้เลือก ใช้ตัวแรก */
+      return p.chars.find(c => c.id === p.activeCharId) || p.chars[0];
+    }
+
+    /* getProfile เดิม — ปรับให้ return ตัวละครที่ active
+       ฟังก์ชันนี้ถูกใช้โดยโค้ดส่วนอื่นๆ ทั้งหมด จึงแก้ตรงนี้จุดเดียว */
+    function getProfile() {
+      const active = getActiveChar();
+      if (!active) return {};
+      /* คืนค่าในรูปแบบเดิม (name, bio, avatarUrl) เพื่อไม่ให้โค้ดอื่นพัง */
+      return {
+        name: active.name,
+        bio: active.bio,
+        avatarUrl: active.avatarUrl
+      };
+    }
+
+    /* ----------------------------------------------------------
+       goToProfile()
+       เปิดหน้าจัดการตัวละคร — โหลดรายการ + โหลดฟอร์มตัวแรก
+       ---------------------------------------------------------- */
+    function goToProfile() {
+      renderProfileList();         /* วาดรายการซ้าย */
+      const active = getActiveChar();
+      if (active) {
+        loadCharToForm(active);    /* โหลดตัว active เข้าฟอร์ม */
+      } else {
+        newCharForm();             /* ถ้ายังไม่มีตัวละครเลย แสดงฟอร์มเปล่า */
+      }
+      showPage('page-profile');
+    }
+
+    /* ----------------------------------------------------------
+       renderProfileList()
+       วาดการ์ดตัวละครในคอลัมน์ซ้าย
+       ---------------------------------------------------------- */
+    function renderProfileList() {
+      const list = document.getElementById('profile-char-list');
+      const chars = getUserChars();
+      const p = state.userProfiles[state.currentUser];
+      const activeId = p?.activeCharId || (chars[0]?.id);
+
+      list.innerHTML = '';
+
+      if (chars.length === 0) {
+        list.innerHTML = `<div style="font-size:12px;color:var(--muted);text-align:center;padding:12px 0;width:100%">
+      ยังไม่มีตัวละคร<br>กด "สร้างตัวละครใหม่" ด้านล่าง
+    </div>`;
+        return;
+      }
+
+      chars.forEach(char => {
+        const isActive = char.id === activeId;
+        const item = document.createElement('div');
+        item.className = 'profile-char-item' + (isActive ? ' active' : '');
+        item.innerHTML = `
+      <div class="profile-item-avatar">
+        ${char.avatarUrl ? `<img src="${char.avatarUrl}">` : '🧙'}
+      </div>
+      <div class="profile-item-info">
+        <div class="profile-item-name">${char.name}</div>
+        <div class="profile-item-bio">${char.bio || 'ไม่มีประวัติ'}</div>
+      </div>
+      ${isActive ? '<div class="profile-item-badge">ใช้งานอยู่</div>' : ''}
+      <button class="profile-item-delete" title="ลบตัวละครนี้"
+        onclick="deleteChar('${char.id}', event)">✕</button>
+    `;
+        /* คลิกการ์ด = โหลดเข้าฟอร์มและเลือกเป็น active */
+        item.addEventListener('click', (e) => {
+          /* ไม่ให้ trigger ตอนกดปุ่มลบ */
+          if (e.target.classList.contains('profile-item-delete')) return;
+          setActiveChar(char.id);
+          loadCharToForm(char);
+        });
+        list.appendChild(item);
+      });
+    }
+
+    /* ----------------------------------------------------------
+       loadCharToForm(char)
+       โหลดข้อมูลตัวละครลงในฟอร์มขวา (เพื่อแก้ไข)
+       ---------------------------------------------------------- */
+    function loadCharToForm(char) {
+      document.getElementById('profile-form-title').textContent = '✦ แก้ไขตัวละคร';
+      document.getElementById('editing-char-id').value = char.id;
+      document.getElementById('profile-name').value = char.name || '';
+      document.getElementById('profile-bio').value = char.bio || '';
+
+      const avatarEl = document.getElementById('profile-avatar-display');
+      /* เก็บ avatarUrl ชั่วคราวสำหรับ handleAvatarUpload */
+      avatarEl._tempAvatarUrl = char.avatarUrl || null;
+      avatarEl.innerHTML = char.avatarUrl
+        ? `<img src="${char.avatarUrl}"><div class="avatar-overlay">📷</div>`
+        : `🧙<div class="avatar-overlay">📷</div>`;
+    }
+
+    /* ----------------------------------------------------------
+       newCharForm()
+       ล้างฟอร์มขวาเพื่อสร้างตัวละครใหม่
+       ---------------------------------------------------------- */
+    function newCharForm() {
+      document.getElementById('profile-form-title').textContent = '✦ สร้างตัวละครใหม่';
+      document.getElementById('editing-char-id').value = ''; /* ว่าง = สร้างใหม่ */
+      document.getElementById('profile-name').value = '';
+      document.getElementById('profile-bio').value = '';
+      const avatarEl = document.getElementById('profile-avatar-display');
+      avatarEl._tempAvatarUrl = null;
+      avatarEl.innerHTML = `🧙<div class="avatar-overlay">📷</div>`;
+    }
+
+    /* ----------------------------------------------------------
+       setActiveChar(charId)
+       เปลี่ยนตัวละครที่ active — อัปเดต state และ render ใหม่
+       ---------------------------------------------------------- */
+
+    async function setActiveChar(charId) {
+      if (!state.userProfiles[state.currentUser]) return;
+
+      try {
+        // ✅ Update ใน Database
+        const { error } = await supabaseClient
+          .from('user_characters')
+          .update({ is_active: true })
+          .eq('id', charId)
+          .eq('user_id', state.currentUserId);
+
+        if (error) throw error;
+
+        // ✅ ปิด active เก่า (ถ้ามี)
+        const oldActiveId = state.userProfiles[state.currentUser].activeCharId;
+        if (oldActiveId && oldActiveId !== charId) {
+          await supabaseClient
+            .from('user_characters')
+            .update({ is_active: false })
+            .eq('id', oldActiveId)
+            .eq('user_id', state.currentUserId);
+        }
+
+        // ✅ อัปเดต state
+        state.userProfiles[state.currentUser].activeCharId = charId;
+        renderProfileList();
+        updateNavUser();
+
+      } catch (e) {
+        console.error('setActiveChar error:', e);
+      }
+    }
+
+    /* ----------------------------------------------------------
+       handleAvatarUpload(event)
+       อ่านรูปที่อัปโหลด เก็บไว้ใน element ชั่วคราว
+       (จะบันทึกจริงตอน saveCharProfile)
+       ---------------------------------------------------------- */
+
+
+    function handleAvatarUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // ✅ Validation
+      const maxSize = 5 * 1024 * 1024;
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
+      if (file.size > maxSize) {
+        showToast('❌ รูปต้องไม่เกิน 5MB');
+        return;
+      }
+
+      if (!allowedTypes.includes(file.type)) {
+        showToast('❌ อนุญาตเฉพาะ JPG, PNG, WebP');
+        return;
+      }
+
+      // ✅ อ่านรูปและ preview
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const avatarEl = document.getElementById('profile-avatar-display');
+        avatarEl._tempAvatarFile = file;      // เก็บ File object
+        avatarEl._tempAvatarUrl = ev.target.result; // preview
+        avatarEl.innerHTML = `<img src="${ev.target.result}"><div class="avatar-overlay">📷</div>`;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    /* ----------------------------------------------------------
+       saveCharProfile()
+       บันทึกตัวละคร (ใหม่ หรือ แก้ไข) ลงใน state
+       ---------------------------------------------------------- */
+
+    async function saveCharProfile() {
+      let name, bio;
+
+      try {
+        // ✅ ดึงค่า
+        name = document.getElementById('profile-name').value;
+        bio = document.getElementById('profile-bio').value;
+
+        // ✅ Validate
+        name = validateCharacterName(name);
+        bio = validateBio(bio);
+
+      } catch (validationError) {
+        // ❌ Validation ล้มเหลว
+        showToast('❌ ' + validationError.message);
+        return;
+      }
+
+      const editingId = document.getElementById('editing-char-id').value;
+      const avatarEl = document.getElementById('profile-avatar-display');
+      const avatarFile = avatarEl._tempAvatarFile || null;
+      const avatarUrl = avatarEl._tempAvatarUrl || null;
+
+      try {
+        let finalAvatarUrl = avatarUrl;
+
+        // ✅ ถ้ามีรูปใหม่ → อัปโหลดไป Storage
+        if (avatarFile) {
+          finalAvatarUrl = await uploadCharacterAvatar(avatarFile);
+          if (!finalAvatarUrl) {
+            showToast('❌ อัปโหลดรูปล้มเหลว');
+            return;
+          }
+        }
+
+        if (editingId) {
+          // ===== แก้ไขตัวละครเก่า =====
+          const { error } = await supabaseClient
+            .from('user_characters')
+            .update({
+              name: name,
+              bio: bio,
+              avatar_url: finalAvatarUrl,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', editingId)
+            .eq('user_id', state.currentUserId);
+
+          if (error) throw error;
+
+          // อัปเดต state
+          const p = state.userProfiles[state.currentUser];
+          const idx = p.chars.findIndex(c => c.id === editingId);
+          if (idx !== -1) {
+            p.chars[idx].name = name;
+            p.chars[idx].bio = bio;
+            p.chars[idx].avatarUrl = finalAvatarUrl;
+          }
+          showToast('✅ บันทึกการแก้ไขแล้ว!');
+
+        } else {
+          // ===== สร้างตัวละครใหม่ =====
+          const { data, error } = await supabaseClient
+            .from('user_characters')
+            .insert([{
+              user_id: state.currentUserId,
+              name: name,
+              bio: bio,
+              avatar_url: finalAvatarUrl,
+              is_active: false
+            }])
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          // อัปเดต state
+          const p = state.userProfiles[state.currentUser];
+          const newChar = {
+            id: data.id,
+            name: data.name,
+            bio: data.bio,
+            avatarUrl: data.avatar_url
+          };
+          p.chars.push(newChar);
+
+          // ตั้งเป็น active ถ้าเป็นตัวแรก
+          if (p.chars.length === 1) {
+            p.activeCharId = newChar.id;
+            await supabaseClient
+              .from('user_characters')
+              .update({ is_active: true })
+              .eq('id', newChar.id);
+          }
+
+          showToast('✅ สร้างตัวละครใหม่แล้ว!');
+        }
+
+        renderProfileList();
+        updateNavUser();
+        saveToStorage();
+
+      } catch (e) {
+        showToast('❌ เกิดข้อผิดพลาด: ' + e.message);
+        console.error(e);
+      }
+    }
+
+    // ===== HELPER: Upload Character Avatar =====
+    async function uploadCharacterAvatar(file) {
+      try {
+        // ✅ Validation
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
+        if (file.size > maxSize) {
+          showToast('❌ รูปต้องไม่เกิน 5MB');
+          return null;
+        }
+
+        if (!allowedTypes.includes(file.type)) {
+          showToast('❌ อนุญาตเฉพาะ JPG, PNG, WebP');
+          return null;
+        }
+
+        // ✅ Compress รูป
+        const compressedBlob = await compressImage(file);
+
+        // ✅ สร้าง path ปลอดภัย
+        const folder = state.currentUserId;
+        const filename = `char_${Date.now()}.jpg`;
+        const path = `${folder}/${filename}`;
+
+        // ✅ อัปโหลด
+        const { data, error } = await supabaseClient.storage
+          .from('avatars')
+          .upload(path, compressedBlob, {
+            contentType: 'image/jpeg',
+            upsert: false
+          });
+
+        if (error) throw error;
+
+        // ✅ ได้ Public URL
+        const { data: urlData } = supabaseClient.storage
+          .from('avatars')
+          .getPublicUrl(path);
+
+        return urlData.publicUrl;
+
+      } catch (e) {
+        console.error('uploadCharacterAvatar error:', e);
+        showToast('❌ อัปโหลดรูปล้มเหลว: ' + e.message);
+        return null;
+      }
+    }
+
+    /* ----------------------------------------------------------
+       deleteChar(charId, event)
+       ลบตัวละครออกจาก list
+       ---------------------------------------------------------- */
+
+
+    async function deleteChar(charId, event) {
+      event.stopPropagation();
+      const p = state.userProfiles[state.currentUser];
+      if (!p || !p.chars) return;
+
+      if (p.chars.length <= 1) {
+        showToast('ต้องมีตัวละครอย่างน้อย 1 ตัว');
+        return;
+      }
+
+      try {
+        // ✅ ลบจาก Database
+        const { error } = await supabaseClient
+          .from('user_characters')
+          .delete()
+          .eq('id', charId)
+          .eq('user_id', state.currentUserId);
+
+        if (error) throw error;
+
+        // ✅ อัปเดต state
+        p.chars = p.chars.filter(c => c.id !== charId);
+
+        if (p.activeCharId === charId) {
+          const newActiveId = p.chars[0]?.id || null;
+          p.activeCharId = newActiveId;
+
+          if (newActiveId) {
+            await supabaseClient
+              .from('user_characters')
+              .update({ is_active: true })
+              .eq('id', newActiveId);
+          }
+        }
+
+        if (document.getElementById('editing-char-id').value === charId) {
+          const firstChar = p.chars[0];
+          if (firstChar) loadCharToForm(firstChar);
+          else newCharForm();
+        }
+
+        renderProfileList();
+        updateNavUser();
+        showToast('ลบตัวละครแล้ว');
+        saveToStorage();
+
+      } catch (e) {
+        showToast('⚠ เกิดข้อผิดพลาด: ' + e.message);
+        console.error(e);
+      }
+    }
+
+
+    /* ============================================================
+       CHAT — แสดงหน้าแชทและตั้งค่าพื้นหลัง
+       history = ประวัติแชทเก่าที่จะ render (กรณีสลับกลับมา)
+       ============================================================ */
+    function goToChat(char, history = []) {
+      const profile = getProfile();
+      const userName = profile.name || state.currentUser;
+      const userAvatar = profile.avatarUrl;
+
+      /* ตั้งพื้นหลังเป็นรูปตัวละคร (เบลอ)
+         ถ้าไม่มีรูปจะใช้สีพื้นหลังปกติ */
+      const chatBg = document.getElementById('chat-bg');
+      if (char.img) {
+        chatBg.style.backgroundImage = `url('${char.img}')`;
+        /* ✏️ ปรับความเข้มของ overlay ได้ที่นี่ (0.0 = ใส, 1.0 = ดำสนิท) */
+        chatBg.style.backgroundColor = 'rgba(13, 13, 20, 0.60)';
+        chatBg.style.backgroundBlendMode = 'darken';
+        chatBg.style.filter = 'blur(2px)'; /* ✏️ ปรับความเบลอ (px) */
+      } else {
+        chatBg.style.backgroundImage = 'none';
+        chatBg.style.filter = 'none';
+      }
+
+      /* อัปเดต sidebar ตัวละคร */
+      document.getElementById('sidebar-char-avatar').innerHTML = charFaceHTML(char);
+      document.getElementById('sidebar-char-name').textContent = char.name;
+      document.getElementById('sidebar-char-desc').textContent = char.desc;
+
+      /* อัปเดต sidebar ผู้ใช้ */
+      document.getElementById('sidebar-user-avatar').innerHTML = userAvatar ? `<img src="${userAvatar}">` : '🧙';
+      document.getElementById('sidebar-user-name').textContent = userName;
+      document.getElementById('sidebar-user-bio').textContent =
+        profile.bio ? profile.bio.substring(0, 60) + (profile.bio.length > 60 ? '...' : '') : 'ไม่ระบุ';
+
+      updateNavUser();
+
+      /* render กล่องแชท */
+      const box = document.getElementById('chat-messages');
+      box.innerHTML = '';
+
+      if (history.length === 0) {
+        /* ยังไม่มีข้อความ — แสดงกล่อง narration (ถ้ามี) แล้วตามด้วย empty state */
+
+        /* ✏️ opening_narration คือข้อความบรรยายฉากที่ Admin เขียนไว้
+           ถ้าตั้งเป็น null จะข้ามส่วนนี้ไป */
+        if (char.opening_narration) {
+          const narDiv = document.createElement('div');
+          narDiv.className = 'narration-box';
+          /* ใช้ textContent แทน innerHTML เพื่อความปลอดภัย
+             แล้วแทนที่ \n ด้วย <br> ด้วย innerHTML ทีหลัง */
+          narDiv.innerHTML = char.opening_narration
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/\n/g, '<br>');
+          box.appendChild(narDiv);
+        }
+
+        /* empty state รอ AI เปิดเรื่อง */
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'chat-empty';
+        emptyDiv.id = 'chat-empty';
+        emptyDiv.innerHTML = `
+        <div class="chat-empty-icon">${charFaceHTML(char)}</div>
+        <div style="color:var(--gold);font-family:'Cinzel',serif;">กำลังเปิดฉาก...</div>`;
+        box.appendChild(emptyDiv);
+      } else {
+        /* render ประวัติแชทเดิม (กรณีสลับตัวละครแล้วกลับมา) */
+        history.forEach(m => {
+          if (!m.text) return;
+
+          if (m.role === 'ai')
+            appendMessage(m.text, 'ai', char.name, '', char.img || char.emoji);
+          else
+            appendMessage(m.text, 'user', userName, userAvatar, '');
+        });
+      }
+
+      showPage('page-chat');
+      document.getElementById('chat-input').focus();
+    }
+
+
+    /* ============================================================
+       ส่งข้อความ
+       ============================================================ */
+    const chatInput = document.getElementById('chat-input');
+
+    /* ปรับความสูง textarea อัตโนมัติตามเนื้อหา */
+    chatInput.addEventListener('input', function () {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+
+    /* Enter = ส่ง, Shift+Enter = ขึ้นบรรทัดใหม่ */
+    chatInput.addEventListener('keydown', function (e) {
+      /* บนมือถือ (isMobile) — Enter ขึ้นบรรทัดใหม่ปกติ
+         บน desktop — Enter ส่ง, Shift+Enter ขึ้นบรรทัด */
+      const isMobile = window.innerWidth <= 640;
+
+      if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    async function sendMessage() {
+      let msg;
+
+      try {
+        // ✅ ดึงค่าข้อความที่พิมพ์
+        msg = document.getElementById('chat-input').value;
+
+        // ✅ Validate ข้อความ (ตรวจสอบว่าไม่ได้พิมพ์ส่งค่าว่าง)
+        msg = validateChatMessage(msg);
+
+      } catch (validationError) {
+        // ❌ Validation ล้มเหลว
+        showToast('❌ ' + validationError.message);
+        return;
+      }
+
+      const char = state.selectedChar;
+      const session = state.sessions[state.currentUser]?.[char.id];
+      if (!session) return;
+
+      const profile = getProfile();
+      const histKey = `${state.currentUser}__${char.id}`;
+      if (!state.chatHistories[histKey]) state.chatHistories[histKey] = [];
+
+      // ลบ empty state ออกจากหน้าจอ
+      const empty = document.getElementById('chat-empty');
+      if (empty) empty.remove();
+
+      // ✅ บันทึกข้อความฝั่ง user ลง Local Storage และ Database แล้วแสดงผล
+      state.chatHistories[histKey].push({ role: 'user', text: msg });
+      saveToStorage();
+      await saveChatToDB('user', msg, char.id);
+      appendMessage(msg, 'user', profile.name || state.currentUser, profile.avatarUrl, '');
+
+      // ล้างช่องพิมพ์
+      const input = document.getElementById('chat-input');
+      input.value = '';
+      input.style.height = 'auto';
+
+      // ปิดปุ่มส่งชั่วคราว + แสดงสถานะกำลังพิมพ์ (typing indicator)
+      const sendBtn = document.getElementById('send-btn');
+      sendBtn.disabled = true;
+      const typingId = 'typing-' + Date.now(); // 🌟 สร้างตัวแปร typingId ตรงนี้
+      appendTyping(typingId);
+
+      // 🚀 ส่งข้อความไปหา Backend
+      try {
+        const res = await fetch(`${API}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: session.session_id, message: msg })
+        });
+        
+        const data = await res.json();
+        removeTyping(typingId); // เอาสถานะกำลังพิมพ์ออก
+
+        // 🌟 1. ดักจับ Error ถ้า Backend ตอบกลับมาว่ามีปัญหา (เช่น ติด Rate Limit, Code 500)
+        // 🌟 1. ดักจับ Error ถ้า Backend ตอบกลับมาว่ามีปัญหา
+        if (res.status === 404) {
+            // ถ้าระบบ Backend ลืม Session (เพราะ Render หลับ) ให้แอบสร้างใหม่รอไว้เลย
+            await createNewSession(char, profile);
+            throw new Error('ระบบเพิ่งตื่นจากการสลีป กรุณากดส่งข้อความอีกครั้งครับ 🔄');
+        }
+
+        if (!res.ok) {
+           throw new Error(data.detail || 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์');
+        }
+
+        // 🌟 2. ถ้าสำเร็จ บันทึกข้อความ AI และแสดงผล
+        state.chatHistories[histKey].push({ role: 'ai', text: data.reply });
+        saveToStorage();
+        await saveChatToDB('ai', data.reply, char.id);
+        appendMessage(data.reply, 'ai', char.name, '', char.img || char.emoji);
+        
+      } catch (e) {
+        // 🌟 3. กรณีมี Error ให้แสดงข้อความแจ้งเตือนสีแดงในแชทแทน
+        removeTyping(typingId);
+        console.error("Chat Error:", e); // แสดง error ใน console เบราว์เซอร์
+        appendMessage('⏳ เซิร์ฟเวอร์ยุ่งมาก หรือเกิดข้อผิดพลาด กรุณารอสักครู่แล้วลองใหม่', 'ai', 'System', '', '⏳');
+      }
+
+      // เปิดปุ่มส่งให้กลับมาใช้งานได้ และโฟกัสช่องพิมพ์ต่อ
+      sendBtn.disabled = false;
+      input.focus();
+      closeSidebarOnMobile();
+    }
+
+    // ===== HELPER: บันทึก Chat ลง Supabase =====
+    async function saveChatToDB(role, message, characterId) {
+      try {
+        if (!state.currentUserId) return;
+
+        const { error } = await supabaseClient
+          .from('chat_histories')
+          .insert([{
+            user_id: state.currentUserId,
+            /* ✅ ลบ user_character_id ออก เพราะ type ไม่ตรง (int vs UUID) */
+            character_id: characterId,
+            role: role,
+            message: message
+          }]);
+
+        if (error) console.warn('Chat save error:', error);
+
+      } catch (e) {
+        console.warn('saveChatToDB error:', e);
+      }
+    }
+
+
+    /* ============================================================
+       แปลงข้อความให้มี Format อัตโนมัติ
+       เรียกใช้ก่อนแสดงทุกข้อความ (ทั้ง AI และ user)
+  
+       กฎ:
+         *ข้อความ*  → ตัวเอียงจาง (.action) — ใช้แทนท่าทาง/action
+         "ข้อความ"  → ตัวหนานิด (.speech)   — ใช้แทนบทพูด
+         \n          → ขึ้นบรรทัดใหม่
+  
+       ตัวอย่าง input:  *ยิ้ม* "สวัสดีครับ"
+       ตัวอย่าง output: <em class="action">ยิ้ม</em> <strong class="speech">"สวัสดีครับ"</strong>
+       ============================================================ */
+    function formatText(text) {
+      /* ✨ ป้องกัน crash ถ้า text เป็น undefined หรือ null */
+      if (!text) return '';
+
+      let out = text
+        /* ขั้นที่ 1: escape HTML ก่อน — ป้องกัน XSS (ความปลอดภัย)
+           แปลง < > & เป็น entity แทน ไม่งั้น HTML อาจพัง */
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      /* ขั้นที่ 1.5: ลบเศษ tag ที่ AI อาจส่งมาเป็น text เช่น
+         &lt;em class="action"&gt; หรือ "action"&gt; หรือ &lt;/em&gt;
+         ซึ่งเกิดเมื่อ AI พยายามใส่ HTML tag เองแทนที่จะใช้ *action* */
+      out = out
+        /* ลบ pattern เช่น "action"> หรือ 'action'> */
+        .replace(/&quot;action&quot;&gt;/g, '')
+        .replace(/"action"&gt;/g, '')
+        /* ลบ <em ...> และ </em> ที่ถูก escape แล้ว */
+        .replace(/&lt;\/?em[^&]*&gt;/g, '')
+        /* ลบ <strong ...> และ </strong> ที่ถูก escape แล้ว */
+        .replace(/&lt;\/?strong[^&]*&gt;/g, '')
+        /* ลบ HTML tag ทั่วไปที่ถูก escape แล้ว เช่น &lt;div&gt; */
+        .replace(/&lt;[^&]*&gt;/g, '');
+
+      /* ขั้นที่ 2: *action* → <em class="action">action</em>
+         [^*]+ = ข้อความใดก็ได้ที่ไม่มี * อยู่ข้างใน */
+      out = out.replace(/\*([^*]+)\*/g, '<em class="action">$1</em>');
+
+      /* ขั้นที่ 3: "พูด" → <strong class="speech">"พูด"</strong>
+         [^"]+ = ข้อความใดก็ได้ที่ไม่มี " อยู่ข้างใน
+         &quot; คือ " ที่ escape แล้ว */
+      out = out.replace(/&quot;([^&]+)&quot;/g, '<strong class="speech">&quot;$1&quot;</strong>');
+
+      /* ขั้นที่ 4: ขึ้นบรรทัดใหม่ */
+      out = out.replace(/\n/g, '<br>');
+
+      return out;
+    }
+
+
+    /* ============================================================
+       วาดข้อความลงในกล่องแชท
+       role = 'ai' หรือ 'user'
+       ============================================================ */
+    function appendMessage(text, role, name, avatarUrl, emoji) {
+      const box = document.getElementById('chat-messages');
+      const row = document.createElement('div');
+      row.className = `msg-row ${role}`;
+
+      const faceClass = role === 'ai' ? 'ai-face' : 'user-face';
+
+      /* AI ใช้รูปตัวละคร, user ใช้รูปโปรไฟล์ */
+      let faceContent;
+      if (role === 'ai' && state.selectedChar?.img) {
+        faceContent = `<img src="${state.selectedChar.img}">`;
+      } else if (avatarUrl) {
+        faceContent = `<img src="${avatarUrl}">`;
+      } else {
+        faceContent = emoji || '🧙';
+      }
+
+      row.innerHTML = `
+      <div class="msg-face ${faceClass}">${faceContent}</div>
+      <div class="msg-bubble">
+        <div class="msg-name">${name}</div>
+        ${formatText(text)}
+      </div>`;
+
+      box.appendChild(row);
+      box.scrollTop = box.scrollHeight; /* เลื่อนลงล่างสุดอัตโนมัติ */
+    }
+
+    /* แสดง typing indicator ขณะรอ AI ตอบ */
+    function appendTyping(id) {
+      const box = document.getElementById('chat-messages');
+      const row = document.createElement('div');
+      row.className = 'msg-row ai';
+      row.id = id;
+      const char = state.selectedChar;
+      row.innerHTML = `
+      <div class="msg-face ai-face">${char?.img ? `<img src="${char.img}">` : (char?.emoji || '🤖')}</div>
+      <div class="msg-bubble" style="background:rgba(19,19,31,0.82);border:1px solid var(--border)">
+        <div class="typing-indicator">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      </div>`;
+      box.appendChild(row);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    /* ลบ typing indicator ออก */
+    function removeTyping(id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
+
+    /* ============================================================
+   MOBILE — ระบบ Sidebar และ Keyboard handling
+   ============================================================ */
+
+    /* ----------------------------------------------------------
+       toggleSidebar()
+       เปิด/ปิด sidebar บนมือถือ
+       ---------------------------------------------------------- */
+    function toggleSidebar() {
+      const sidebar = document.querySelector('.chat-sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      const isOpen = sidebar.classList.contains('open');
+
+      if (isOpen) {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('open');
+      } else {
+        sidebar.classList.add('open');
+        overlay.classList.add('open');
+      }
+    }
+
+    /* ปิด sidebar อัตโนมัติเมื่อกดส่งข้อความ (มือถือ) */
+    function closeSidebarOnMobile() {
+      if (window.innerWidth <= 640) {
+        const sidebar = document.querySelector('.chat-sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        sidebar.classList.remove('open');
+        overlay.classList.remove('open');
+      }
+    }
+
+    /* ============================================================
+       MOBILE — แก้ปัญหาคีย์บอร์ดบัง input
+       ============================================================ */
+
+    function scrollToBottom() {
+      const messages = document.getElementById('chat-messages');
+      if (messages) messages.scrollTop = messages.scrollHeight;
+    }
+
+    /* คีย์บอร์ดเด้ง → scroll ลงล่าง */
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        setTimeout(scrollToBottom, 80);
+      });
+    }
+
+    /* หมุนจอ → scroll ลงล่าง */
+    window.addEventListener('orientationchange', () => {
+      setTimeout(scrollToBottom, 300);
+    });
+
+    /* ตอนหมุนจอ — reset ความสูง */
+    window.addEventListener('orientationchange', () => {
+      setTimeout(scrollToBottom, 300);
+    });
+
+    /* ============================================================
+       SWITCH CHAR PANEL — สลับตัวละครของ user ขณะอยู่ในแชท
+       ============================================================ */
+
+    function openSwitchCharPanel() {
+      renderSwitchCharList();
+      document.getElementById('switch-char-panel').classList.add('open');
+      document.getElementById('switch-char-overlay').classList.add('open');
+      closeSidebarOnMobile(); /* ปิด sidebar ถ้าเปิดอยู่ */
+    }
+
+    function closeSwitchCharPanel() {
+      document.getElementById('switch-char-panel').classList.remove('open');
+      document.getElementById('switch-char-overlay').classList.remove('open');
+    }
+
+    /* วาดรายการตัวละครใน panel */
+    function renderSwitchCharList() {
+      const list = document.getElementById('switch-char-list');
+      const chars = getUserChars();
+      const activeId = state.userProfiles[state.currentUser]?.activeCharId;
+      list.innerHTML = '';
+
+      if (chars.length === 0) {
+        list.innerHTML = `<div style="font-size:12px;color:var(--muted);text-align:center;padding:12px 0">
+          ยังไม่มีตัวละคร<br>กด "จัดการตัวละคร" ด้านล่าง</div>`;
+        return;
+      }
+
+      chars.forEach(char => {
+        const isActive = char.id === activeId;
+        const item = document.createElement('div');
+        item.className = 'switch-char-item' + (isActive ? ' active' : '');
+        item.innerHTML = `
+          <div class="switch-char-avatar">${char.avatarUrl ? `<img src="${char.avatarUrl}">` : '🧙'}</div>
+          <div style="flex:1;min-width:0">
+            <div class="switch-char-name">${char.name}</div>
+            <div class="switch-char-bio">${char.bio || 'ไม่มีประวัติ'}</div>
+          </div>
+          ${isActive ? '<div class="switch-char-badge">ใช้งานอยู่</div>' : ''}`;
+        item.addEventListener('click', () => switchUserChar(char));
+        list.appendChild(item);
+      });
+    }
+
+    /* ✨ สลับตัวละคร user — อัปเดต state, sidebar, และแจ้ง AI */
+    async function switchUserChar(char) {
+      setActiveChar(char.id);
+      closeSwitchCharPanel();
+      updateNavUser();
+
+      /* อัปเดต sidebar */
+      const profile = getProfile();
+      document.getElementById('sidebar-user-avatar').innerHTML =
+        profile.avatarUrl ? `<img src="${profile.avatarUrl}">` : '🧙';
+      document.getElementById('sidebar-user-name').textContent = profile.name || state.currentUser;
+      document.getElementById('sidebar-user-bio').textContent =
+        profile.bio ? profile.bio.substring(0, 60) + (profile.bio.length > 60 ? '...' : '') : 'ไม่ระบุ';
+
+      showToast(`✓ สลับเป็น "${char.name}" แล้ว`);
+
+      /* แจ้ง AI เงียบๆ ว่าผู้เล่นเปลี่ยนตัวละคร */
+      const selectedChar = state.selectedChar;
+      if (!selectedChar) return;
+      const session = state.sessions[state.currentUser]?.[selectedChar.id];
+      if (!session) return;
+      try {
+        await fetch(`${API}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: session.session_id,
+            message: `[ระบบ — ห้ามตอบสนองให้ผู้เล่นเห็น]: ผู้เล่นเปลี่ยนบทบาทเป็น "${char.name}" ประวัติ: ${char.bio || 'ไม่ระบุ'} ให้ปรับการตอบสนองให้เข้ากับบทบาทใหม่`
+          })
+        });
+      } catch (e) { /* ไม่แสดงผล — แค่แจ้ง AI เงียบๆ */ }
+    }
+
+    /* ============================================================
+       Reset การสนทนา — ล้างแชทและให้ AI เปิดเรื่องใหม่
+       ============================================================ */
+    async function resetChat() {
+      const char = state.selectedChar;
+      const session = state.sessions[state.currentUser]?.[char.id];
+      if (!session) return;
+
+      /* ✨ key ประวัติ */
+      const histKey = `${state.currentUser}__${char.id}`;
+
+      /* แจ้ง Backend ล้าง history ฝั่ง server */
+      try {
+        await fetch(`${API}/reset/${session.session_id}`, { method: 'DELETE' });
+      } catch (e) { }
+
+      /* ✨ ล้าง chatHistories และบันทึก localStorage */
+      state.chatHistories[histKey] = [];
+      saveToStorage();
+
+      /* ✅ ลบประวัติแชทจาก Supabase */
+      try {
+        if (state.currentUserId) {
+          await supabaseClient
+            .from('chat_histories')
+            .delete()
+            .eq('user_id', state.currentUserId)
+            .eq('character_id', char.id); /* ← ใช้ character_id (AI char) */
+        }
+      } catch (e) {
+        console.warn('Reset chat DB error:', e);
+      }
+
+      /* แสดง narration ใหม่ (ถ้ามี) + empty state */
+      const box = document.getElementById('chat-messages');
+      box.innerHTML = '';
+
+      if (char.opening_narration) {
+        const narDiv = document.createElement('div');
+        narDiv.className = 'narration-box';
+        narDiv.innerHTML = char.opening_narration
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br>');
+        box.appendChild(narDiv);
+      }
+
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'chat-empty';
+      emptyDiv.id = 'chat-empty';
+      emptyDiv.innerHTML = `
+      <div class="chat-empty-icon">${charFaceHTML(char)}</div>
+      <div style="color:var(--gold);font-family:'Cinzel',serif;">กำลังเปิดฉากใหม่...</div>`;
+      box.appendChild(emptyDiv);
+
+      showToast('🔄 ล้างการสนทนาแล้ว');
+
+      /* ให้ AI เปิดเรื่องใหม่อีกครั้ง */
+      await sendOpeningMessage(char);
+    }
+
+  </script>
+</body>
+
+</html>
